@@ -181,11 +181,28 @@ class VideoStreamController(QObject):
     
     @Slot(float, float, int)
     def sendTouch(self, x: float, y: float, action: int):
-        """Send touch event to CarPlay"""
+        """Send touch event to CarPlay
+        
+        Args:
+            x: X coordinate in video space (0-1280)
+            y: Y coordinate in video space (0-720)
+            action: TouchAction value (14=Down, 15=Move, 16=Up)
+        """
         if self._carplay_node:
             from sendable import TouchAction
-            self._carplay_node.send_touch(x, y, TouchAction(action))
-            print(f"Sent touch: ({x}, {y}), action={action}")
+            
+            # Normalize coordinates to 0.0-1.0 range
+            # Video is 1280x720
+            norm_x = x / 1280.0
+            norm_y = y / 720.0
+            
+            # Clamp to valid range
+            norm_x = max(0.0, min(1.0, norm_x))
+            norm_y = max(0.0, min(1.0, norm_y))
+            
+            action_name = {14: "DOWN", 15: "MOVE", 16: "UP"}.get(action, f"UNKNOWN({action})")
+            self._carplay_node.send_touch(norm_x, norm_y, TouchAction(action))
+            print(f"🖱️  Touch {action_name}: screen({int(x)}, {int(y)}) -> normalized({norm_x:.3f}, {norm_y:.3f})")
 
 
 def main():

@@ -9,6 +9,42 @@ ApplicationWindow {
     height: 720
     title: "PyCarPlay - Video Stream"
     color: "#1e1e1e"
+    
+    // Keyboard shortcuts for CarPlay navigation
+    Shortcut {
+        sequence: "Escape"
+        onActivated: videoController.sendKey("back")
+    }
+    
+    Shortcut {
+        sequence: "H"
+        onActivated: videoController.sendKey("home")
+    }
+    
+    Shortcut {
+        sequence: "Space"
+        onActivated: videoController.sendKey("playOrPause")
+    }
+    
+    Shortcut {
+        sequence: "Left"
+        onActivated: videoController.sendKey("left")
+    }
+    
+    Shortcut {
+        sequence: "Right"
+        onActivated: videoController.sendKey("right")
+    }
+    
+    Shortcut {
+        sequence: "Up"
+        onActivated: videoController.sendKey("up")
+    }
+    
+    Shortcut {
+        sequence: "Down"
+        onActivated: videoController.sendKey("down")
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -80,6 +116,64 @@ ApplicationWindow {
                 objectName: "videoContainer"
                 anchors.fill: parent
                 anchors.margins: 2
+                
+                // Touch handling
+                MouseArea {
+                    id: touchArea
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    
+                    onPressed: function(mouse) {
+                        // Convert screen coordinates to video coordinates (1280x720)
+                        var videoCoords = videoDisplay.mapToVideoCoordinates(mouse.x, mouse.y)
+                        if (videoCoords[0] >= 0 && videoCoords[1] >= 0) {
+                            // TouchAction.Down = 14
+                            videoController.sendTouch(videoCoords[0], videoCoords[1], 14)
+                            // Show visual feedback at screen position
+                            touchIndicator.x = mouse.x - touchIndicator.width / 2
+                            touchIndicator.y = mouse.y - touchIndicator.height / 2
+                            touchIndicator.visible = true
+                        }
+                    }
+                    
+                    onReleased: function(mouse) {
+                        // Convert screen coordinates to video coordinates
+                        var videoCoords = videoDisplay.mapToVideoCoordinates(mouse.x, mouse.y)
+                        if (videoCoords[0] >= 0 && videoCoords[1] >= 0) {
+                            // TouchAction.Up = 16
+                            videoController.sendTouch(videoCoords[0], videoCoords[1], 16)
+                        }
+                        // Hide visual feedback
+                        touchIndicator.visible = false
+                    }
+                    
+                    onPositionChanged: function(mouse) {
+                        if (pressed) {
+                            // Convert screen coordinates to video coordinates
+                            var videoCoords = videoDisplay.mapToVideoCoordinates(mouse.x, mouse.y)
+                            if (videoCoords[0] >= 0 && videoCoords[1] >= 0) {
+                                // TouchAction.Move = 15
+                                videoController.sendTouch(videoCoords[0], videoCoords[1], 15)
+                                // Update visual feedback position at screen position
+                                touchIndicator.x = mouse.x - touchIndicator.width / 2
+                                touchIndicator.y = mouse.y - touchIndicator.height / 2
+                            }
+                        }
+                    }
+                }
+                
+                // Touch indicator (visual feedback)
+                Rectangle {
+                    id: touchIndicator
+                    width: 30
+                    height: 30
+                    radius: 15
+                    color: "#4080ff80"
+                    border.color: "#80ffffff"
+                    border.width: 2
+                    visible: false
+                    z: 1000
+                }
             }
             
             // Overlay items
@@ -191,6 +285,104 @@ ApplicationWindow {
                     color: "#666"
                     font.pixelSize: 12
                 }
+                
+                // Help button
+                Button {
+                    text: "?"
+                    font.bold: true
+                    Layout.preferredWidth: 30
+                    Layout.preferredHeight: 30
+                    onClicked: helpDialog.visible = !helpDialog.visible
+                }
+            }
+        }
+    }
+    
+    // Help Dialog
+    Rectangle {
+        id: helpDialog
+        anchors.centerIn: parent
+        width: 400
+        height: 350
+        color: "#2d2d2d"
+        border.color: "#0078d4"
+        border.width: 2
+        radius: 8
+        visible: false
+        z: 1000
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 10
+            
+            Label {
+                text: "⌨️ Keyboard Shortcuts"
+                font.pixelSize: 18
+                font.bold: true
+                color: "#ffffff"
+                Layout.alignment: Qt.AlignHCenter
+            }
+            
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#444"
+            }
+            
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                rowSpacing: 8
+                columnSpacing: 20
+                
+                Label { text: "ESC"; color: "#0078d4"; font.bold: true }
+                Label { text: "Back"; color: "#aaa" }
+                
+                Label { text: "H"; color: "#0078d4"; font.bold: true }
+                Label { text: "Home"; color: "#aaa" }
+                
+                Label { text: "SPACE"; color: "#0078d4"; font.bold: true }
+                Label { text: "Play/Pause"; color: "#aaa" }
+                
+                Label { text: "←/→/↑/↓"; color: "#0078d4"; font.bold: true }
+                Label { text: "Navigate"; color: "#aaa" }
+            }
+            
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#444"
+            }
+            
+            Label {
+                text: "🖱️ Mouse/Touch"
+                font.pixelSize: 16
+                font.bold: true
+                color: "#ffffff"
+                Layout.topMargin: 10
+            }
+            
+            Label {
+                text: "• Click and drag on video to interact with CarPlay"
+                color: "#aaa"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            
+            Label {
+                text: "• Blue circle shows touch position"
+                color: "#aaa"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            
+            Item { Layout.fillHeight: true }
+            
+            Button {
+                text: "Close"
+                Layout.alignment: Qt.AlignHCenter
+                onClicked: helpDialog.visible = false
             }
         }
     }

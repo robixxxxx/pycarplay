@@ -20,6 +20,7 @@ class VideoFrameProvider(QQuickPaintedItem):
         super().__init__(parent)
         self._current_frame: Optional[QImage] = None
         self._frame_count = 0
+        self._last_draw_rect = QRectF()  # Initialize draw rect
         
         # Set flags for better performance
         self.setAntialiasing(True)
@@ -79,9 +80,38 @@ class VideoFrameProvider(QQuickPaintedItem):
             x_offset = (self.width() - scaled_width) / 2
             draw_rect = QRectF(x_offset, 0, scaled_width, self.height())
         
+        # Store draw_rect for touch coordinate conversion
+        self._last_draw_rect = draw_rect
+        
         # Draw the image with smooth transformation
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.drawImage(draw_rect, self._current_frame)
+    
+    @Slot(float, float, result='QVariantList')
+    def mapToVideoCoordinates(self, screen_x: float, screen_y: float):
+        """
+        Convert screen coordinates to video coordinates (1280x720)
+        Returns [x, y] in video space, or [-1, -1] if outside video area
+        """
+        if not hasattr(self, '_last_draw_rect') or not self._current_frame:
+            return [-1, -1]
+        
+        draw_rect = self._last_draw_rect
+        
+        # Check if point is inside the actual video area
+        if (screen_x < draw_rect.x() or screen_x > draw_rect.x() + draw_rect.width() or
+            screen_y < draw_rect.y() or screen_y > draw_rect.y() + draw_rect.height()):
+            return [-1, -1]
+        
+        # Convert to normalized coordinates within the draw rect (0.0 to 1.0)
+        norm_x = (screen_x - draw_rect.x()) / draw_rect.width()
+        norm_y = (screen_y - draw_rect.y()) / draw_rect.height()
+        
+        # Scale to video resolution
+        video_x = norm_x * self._current_frame.width()
+        video_y = norm_y * self._current_frame.height()
+        
+        return [int(video_x), int(video_y)]
     
     @Property(int, notify=frameCountChanged)
     def frameCount(self) -> int:

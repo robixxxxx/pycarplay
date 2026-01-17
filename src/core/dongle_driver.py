@@ -10,8 +10,8 @@ import time
 from enum import IntEnum
 from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
-from messages import MessageHeader, HeaderBuildError, PhoneType
-from sendable import (
+from ..protocol.messages import MessageHeader, HeaderBuildError, PhoneType
+from ..protocol.sendable import (
     SendableMessage, SendNumber, SendBoolean, SendString,
     SendOpen, SendBoxSettings, SendCommand, HeartBeat, FileAddress
 )
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     
     def on_message(message):
         """Handle received message"""
-        from messages import VideoData, AudioData, Plugged
+        from ..protocol.messages import VideoData, AudioData, Plugged
         
         if isinstance(message, VideoData):
             print(f"Video: {message.width}x{message.height}, {len(message.data)} bytes")

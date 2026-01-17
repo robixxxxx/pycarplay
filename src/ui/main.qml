@@ -705,7 +705,7 @@ ApplicationWindow {
                         TextField {
                             id: iconPathField
                             placeholderText: "/path/to/icon.png"
-                            text: "/Users/robertburda/dev/python/pycarplay/logo.png"
+                            text: "/Users/robertburda/dev/python/pycarplay/assets/icons/logo.png"
                             Layout.fillWidth: true
                         }
                         

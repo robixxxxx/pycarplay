@@ -8,7 +8,7 @@ import json
 import time
 from typing import List, Tuple
 from enum import IntEnum
-from messages import MessageType, MessageHeader
+from .messages import MessageType, MessageHeader
 
 
 class CommandMapping(IntEnum):

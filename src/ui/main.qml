@@ -6,10 +6,20 @@ import QtQuick.Dialogs
 ApplicationWindow {
     id: mainWindow
     visible: true
-    width: 1280
-    height: 720
+    width: videoController ? videoController.getVideoWidth() : 1280
+    height: videoController ? videoController.getVideoHeight() : 720
     title: "PyCarPlay - Video Stream"
     color: "#1e1e1e"
+    
+    // Update window size when video config changes
+    Connections {
+        target: videoController
+        function onVideoConfigChanged(width, height, dpi) {
+            mainWindow.width = width
+            mainWindow.height = height
+            console.log("Window resized to: " + width + "x" + height)
+        }
+    }
     
     // Keyboard shortcuts for CarPlay navigation
     Shortcut {
@@ -46,6 +56,46 @@ ApplicationWindow {
         sequence: "Down"
         onActivated: videoController.sendKey("down")
     }
+    
+    // Settings applied notification
+    Rectangle {
+        id: settingsAppliedNotification
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 20
+        width: 400
+        height: 60
+        color: "#28a745"
+        radius: 8
+        visible: false
+        z: 2000
+        
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 15
+            spacing: 10
+            
+            Label {
+                text: "✅"
+                font.pixelSize: 24
+                color: "#ffffff"
+            }
+            
+            Label {
+                text: "Settings applied! Device reloading..."
+                font.pixelSize: 14
+                font.bold: true
+                color: "#ffffff"
+                Layout.fillWidth: true
+            }
+        }
+        
+        Timer {
+            id: settingsAppliedTimer
+            interval: 3000
+            onTriggered: settingsAppliedNotification.visible = false
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -74,10 +124,11 @@ ApplicationWindow {
 
                 // Dongle status indicator
                 Rectangle {
-                    Layout.preferredWidth: 150
+                    Layout.preferredWidth: 200
                     Layout.preferredHeight: 40
-                    color: videoController.dongleStatus === "Connected" ? "#28a745" : 
-                           videoController.dongleStatus === "Connecting..." ? "#ffc107" : "#dc3545"
+                    color: videoController.dongleStatus.startsWith("Connected") ? "#28a745" : 
+                           videoController.dongleStatus.startsWith("Connecting") || videoController.dongleStatus.startsWith("Reconnecting") ? "#ffc107" : 
+                           videoController.dongleStatus.startsWith("Failed") ? "#dc3545" : "#6c757d"
                     radius: 4
                     
                     Label {
@@ -85,6 +136,28 @@ ApplicationWindow {
                         text: videoController.dongleStatus
                         color: "#ffffff"
                         font.bold: true
+                        font.pixelSize: 12
+                    }
+                    
+                    // Pulsing animation for connecting/reconnecting states
+                    SequentialAnimation {
+                        running: videoController.dongleStatus.startsWith("Connecting") || 
+                                videoController.dongleStatus.startsWith("Reconnecting")
+                        loops: Animation.Infinite
+                        NumberAnimation {
+                            target: parent
+                            property: "opacity"
+                            from: 1.0
+                            to: 0.5
+                            duration: 500
+                        }
+                        NumberAnimation {
+                            target: parent
+                            property: "opacity"
+                            from: 0.5
+                            to: 1.0
+                            duration: 500
+                        }
                     }
                 }
 
@@ -545,6 +618,42 @@ ApplicationWindow {
         visible: false
         z: 500
         
+        onVisibleChanged: {
+            if (visible) {
+                // Load current video settings
+                var width = videoController.getVideoWidth()
+                var height = videoController.getVideoHeight()
+                var dpi = videoController.getVideoDpi()
+                
+                // Set resolution combo box
+                var resolutionText = width + "x" + height
+                var foundPreset = false
+                
+                for (var i = 0; i < resolutionCombo.model.length - 1; i++) {  // -1 to skip "Custom"
+                    if (resolutionCombo.model[i] === resolutionText) {
+                        resolutionCombo.currentIndex = i
+                        foundPreset = true
+                        break
+                    }
+                }
+                
+                // If not a preset, use custom fields
+                if (!foundPreset) {
+                    resolutionCombo.currentIndex = resolutionCombo.model.length - 1  // "Custom"
+                    widthField.text = width.toString()
+                    heightField.text = height.toString()
+                    customResolutionFields.visible = true
+                } else {
+                    customResolutionFields.visible = false
+                }
+                
+                // Set DPI
+                dpiSpinBox.value = dpi
+                
+                console.log("Loaded settings: " + resolutionText + " @ " + dpi + " DPI")
+            }
+        }
+        
         ColumnLayout {
             anchors.centerIn: parent
             spacing: 30
@@ -665,6 +774,116 @@ ApplicationWindow {
                 }
             }
             
+            // Video settings
+            GroupBox {
+                title: "🖥️ Video Settings"
+                Layout.fillWidth: true
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 15
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Resolution:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        ComboBox {
+                            id: resolutionCombo
+                            Layout.preferredWidth: 150
+                            editable: true
+                            model: [
+                                "800x480",
+                                "1024x600", 
+                                "1280x720",
+                                "1920x1080",
+                                "Custom"
+                            ]
+                            currentIndex: 2  // Default: 1280x720
+                            
+                            onCurrentTextChanged: {
+                                if (currentText === "Custom") {
+                                    customResolutionFields.visible = true
+                                } else if (currentText.includes('x')) {
+                                    customResolutionFields.visible = false
+                                    var res = currentText.split('x')
+                                    widthField.text = res[0]
+                                    heightField.text = res[1]
+                                }
+                            }
+                        }
+                        
+                        RowLayout {
+                            id: customResolutionFields
+                            visible: false
+                            spacing: 5
+                            
+                            TextField {
+                                id: widthField
+                                placeholderText: "Width"
+                                text: "1280"
+                                validator: IntValidator { bottom: 320; top: 3840 }
+                                Layout.preferredWidth: 80
+                            }
+                            
+                            Label {
+                                text: "×"
+                                color: "#ffffff"
+                            }
+                            
+                            TextField {
+                                id: heightField
+                                placeholderText: "Height"
+                                text: "720"
+                                validator: IntValidator { bottom: 240; top: 2160 }
+                                Layout.preferredWidth: 80
+                            }
+                        }
+                    }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "DPI:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        SpinBox {
+                            id: dpiSpinBox
+                            from: 72
+                            to: 600
+                            value: 160
+                            stepSize: 10
+                            Layout.fillWidth: true
+                            
+                            Label {
+                                anchors.right: parent.right
+                                anchors.rightMargin: -60
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: parent.value.toString()
+                                color: "#ffffff"
+                            }
+                        }
+                    }
+                    
+                    Label {
+                        text: "Higher DPI = sharper UI elements (requires reconnect)"
+                        color: "#888"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+            
             // CarPlay appearance settings
             GroupBox {
                 title: "🚗 CarPlay Appearance"
@@ -746,6 +965,31 @@ ApplicationWindow {
                     Layout.preferredWidth: 150
                     Layout.preferredHeight: 40
                     onClicked: {
+                        // Get video settings
+                        var width, height
+                        
+                        if (customResolutionFields.visible) {
+                            // Custom resolution from text fields
+                            width = parseInt(widthField.text)
+                            height = parseInt(heightField.text)
+                        } else {
+                            // Selected from combo box
+                            var resolution = resolutionCombo.currentText.split('x')
+                            width = parseInt(resolution[0])
+                            height = parseInt(resolution[1])
+                        }
+                        
+                        var dpi = dpiSpinBox.value
+                        
+                        // Validate values
+                        if (isNaN(width) || isNaN(height) || width < 320 || height < 240) {
+                            console.log("Invalid resolution values")
+                            return
+                        }
+                        
+                        // Apply video settings
+                        videoController.setVideoSettings(width, height, dpi)
+                        
                         // Apply CarPlay icon if specified
                         if (iconPathField.text !== "") {
                             videoController.setCarPlayIcon(iconPathField.text)
@@ -756,7 +1000,12 @@ ApplicationWindow {
                             videoController.setCarPlayLabel(iconLabelField.text)
                         }
                         
-                        console.log("Settings applied")
+                        console.log("Settings applied: " + width + "x" + height + " @ " + dpi + " DPI")
+                        
+                        // Show notification about auto-reload
+                        settingsAppliedNotification.visible = true
+                        settingsAppliedTimer.start()
+                        
                         configPanel.visible = false
                     }
                 }
@@ -770,6 +1019,17 @@ ApplicationWindow {
                         configPanel.visible = false
                     }
                 }
+            }
+            
+            // Info text about auto-reload
+            Label {
+                text: "ℹ️ Settings will be auto-applied. Device will reload if phone is connected."
+                color: "#888"
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }

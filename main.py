@@ -46,6 +46,7 @@ class VideoStreamController(QObject):
     navigationInfoChanged = Signal(str)
     showConfigPanel = Signal()
     hideConfigPanel = Signal()
+    videoConfigChanged = Signal(int, int, int)  # width, height, dpi
     
     def __init__(self, video_provider: VideoFrameProvider):
         super().__init__()
@@ -65,6 +66,23 @@ class VideoStreamController(QObject):
         self._current_artist = ""
         self._navigation_info = ""
         self._siri_mode = False  # Mono audio for Siri/calls
+        self._video_config = {
+            'width': 1280,
+            'height': 720,
+            'dpi': 160
+        }
+        self._reconnect_timer = QTimer()
+        self._reconnect_attempts = 0
+        self._max_reconnect_attempts = 5
+        self._phone_connected = False
+        self._pending_settings_reload = False
+        
+        # Load saved config
+        self._load_video_config()
+        
+        # Setup reconnect timer
+        self._reconnect_timer.timeout.connect(self._attempt_reconnect)
+        self._reconnect_timer.setSingleShot(True)
         
         # === Signal Connections ===
         self._video_decoder.frameDecoded.connect(self._video_provider.updateFrame)
@@ -139,12 +157,12 @@ class VideoStreamController(QObject):
         try:
             self.dongleStatus = "Connecting..."
             
-            # Create CarPlay config
+            # Create CarPlay config with saved video settings
             config = DongleConfig(
-                width=1280,
-                height=720,
+                width=self._video_config['width'],
+                height=self._video_config['height'],
                 fps=30,
-                dpi=160,
+                dpi=self._video_config['dpi'],
                 box_name="pyCarPlay",
                 hand=HandDriveType.LHD,
                 wifi_type="5ghz",
@@ -224,6 +242,40 @@ class VideoStreamController(QObject):
         # Wait a moment before reconnecting
         QTimer.singleShot(2000, self.connectDongle)  # Reconnect after 2 seconds
     
+    def _attempt_reconnect(self):
+        """Attempt to reconnect to dongle after failure"""
+        self._reconnect_attempts += 1
+        
+        if self._reconnect_attempts > self._max_reconnect_attempts:
+            print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) reached. Please reconnect manually.")
+            self.dongleStatus = "Failed - Manual reconnection needed"
+            return
+        
+        print(f"🔄 Reconnection attempt #{self._reconnect_attempts}/{self._max_reconnect_attempts}...")
+        self.dongleStatus = f"Reconnecting... (attempt {self._reconnect_attempts})"
+        
+        # Disconnect first
+        self.disconnectDongle()
+        
+        # Wait and reconnect
+        QTimer.singleShot(1000, self.connectDongle)
+    
+    def _reload_device(self):
+        """Reload device connection to apply new settings"""
+        print("🔄 Reloading device with new settings...")
+        
+        # Store current connection state
+        was_connected = self._carplay_node is not None
+        
+        if was_connected:
+            # Disconnect
+            self.disconnectDongle()
+            
+            # Wait and reconnect with new settings
+            QTimer.singleShot(2000, self.connectDongle)
+        else:
+            print("⚠️  Device not connected - settings will apply on next connection")
+    
     def _on_carplay_message(self, msg: CarplayMessage):
         """Handle messages from CarPlay node"""
         
@@ -256,17 +308,30 @@ class VideoStreamController(QObject):
         """Handle phone plugged event"""
         phone_type = message.phone_type.name
         print(f"📱 Phone plugged: {phone_type}")
+        self._phone_connected = True
+        self._reconnect_attempts = 0  # Reset reconnect counter
         self.dongleStatus = f"Connected - {phone_type}"
         self.dongleConnected.emit()
         
         # Send CarPlay icon and label
         icon_path = Path(__file__).parent / "assets" / "icons" / "logo.png"
         self.setCarPlayIcon(str(icon_path))
+        
+        # If settings were changed while disconnected, reload device
+        if self._pending_settings_reload:
+            print("🔄 Settings changed - reloading device...")
+            self._pending_settings_reload = False
+            QTimer.singleShot(1000, self._reload_device)
     
     def _handle_unplugged(self):
         """Handle phone unplugged event"""
         print("📱 Phone unplugged")
+        self._phone_connected = False
         self.dongleStatus = "Connected - No phone"
+        
+        # Start reconnection attempts
+        print("🔄 Phone disconnected - will monitor for reconnection")
+        self._reconnect_attempts = 0
     
     def _handle_video(self, message: VideoData):
         """Handle video data"""
@@ -329,6 +394,12 @@ class VideoStreamController(QObject):
         print("❌ CarPlay communication failed")
         self.dongleStatus = "Failed"
         self.dongleDisconnected.emit()
+        
+        # Start reconnection attempts
+        if self._reconnect_attempts < self._max_reconnect_attempts:
+            delay = min(5000 * (2 ** self._reconnect_attempts), 30000)  # Exponential backoff, max 30s
+            print(f"🔄 Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
+            self._reconnect_timer.start(delay)
     
     def _handle_command(self, message):
         """Handle system commands"""
@@ -455,6 +526,35 @@ class VideoStreamController(QObject):
         elif action == 'stop':
             self.stopMicrophone()
     
+    # === Configuration Management ===
+    
+    def _load_video_config(self):
+        """Load video configuration from file"""
+        import json
+        import os
+        
+        config_file = os.path.join(os.path.dirname(__file__), 'video_config.json')
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r') as f:
+                    self._video_config = json.load(f)
+                print(f"⚙️  Loaded video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
+            except Exception as e:
+                print(f"⚠️  Failed to load video config: {e}")
+    
+    def _save_video_config(self):
+        """Save video configuration to file"""
+        import json
+        import os
+        
+        config_file = os.path.join(os.path.dirname(__file__), 'video_config.json')
+        try:
+            with open(config_file, 'w') as f:
+                json.dump(self._video_config, f, indent=2)
+            print(f"💾 Saved video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
+        except Exception as e:
+            print(f"⚠️  Failed to save video config: {e}")
+    
     @Slot()
     def startMicrophone(self):
         """Start microphone recording (for Siri/calls)"""
@@ -466,6 +566,59 @@ class VideoStreamController(QObject):
         """Stop microphone recording"""
         self._microphone.stop()
         print("🎤 Microphone stopped")
+    
+    # === Public API ===
+    
+    @Slot(result=int)
+    def getVideoWidth(self):
+        """Get current video width"""
+        return self._video_config['width']
+    
+    @Slot(result=int)
+    def getVideoHeight(self):
+        """Get current video height"""
+        return self._video_config['height']
+    
+    @Slot(result=int)
+    def getVideoDpi(self):
+        """Get current video DPI"""
+        return self._video_config['dpi']
+    
+    @Slot(int, int, int)
+    def setVideoSettings(self, width: int, height: int, dpi: int):
+        """Set video resolution and DPI
+        
+        Args:
+            width: Video width in pixels
+            height: Video height in pixels
+            dpi: DPI value
+        """
+        # Save config
+        self._video_config = {
+            'width': width,
+            'height': height,
+            'dpi': dpi
+        }
+        self._save_video_config()
+        
+        # Emit signal to update UI window size and touch scaling
+        self.videoConfigChanged.emit(width, height, dpi)
+        
+        if self._carplay_node:
+            # Update dongle settings
+            self._carplay_node.dongle_driver.update_video_settings(width, height, dpi)
+            print(f"⚙️  Video settings updated: {width}x{height} @ {dpi} DPI")
+            
+            # Auto-reload device to apply settings
+            if self._phone_connected:
+                print(f"🔄 Phone connected - reloading device to apply settings...")
+                QTimer.singleShot(500, self._reload_device)
+            else:
+                print(f"⚠️  No phone connected - settings will apply on next connection")
+                self._pending_settings_reload = True
+        else:
+            print(f"⚙️  Video settings saved: {width}x{height} @ {dpi} DPI")
+            print(f"⚠️  Connect dongle first to send settings")
     
     @Slot(str)
     def setCarPlayLabel(self, label: str):
@@ -555,8 +708,8 @@ class VideoStreamController(QObject):
         """Send touch event to CarPlay
         
         Args:
-            x: X coordinate in video space (0-1280)
-            y: Y coordinate in video space (0-720)
+            x: X coordinate in video space (based on current resolution)
+            y: Y coordinate in video space (based on current resolution)
             action: TouchAction value (14=Down, 15=Move, 16=Up)
         """
         if not self._carplay_node:
@@ -564,15 +717,19 @@ class VideoStreamController(QObject):
         
         from src.protocol.sendable import TouchAction
         
-        # Normalize to 0.0-1.0 range
-        norm_x = max(0.0, min(1.0, x / 1280.0))
-        norm_y = max(0.0, min(1.0, y / 720.0))
+        # Get current resolution from config
+        width = self._video_config['width']
+        height = self._video_config['height']
+        
+        # Normalize to 0.0-1.0 range using actual resolution
+        norm_x = max(0.0, min(1.0, x / width))
+        norm_y = max(0.0, min(1.0, y / height))
         
         action_names = {14: "DOWN", 15: "MOVE", 16: "UP"}
         action_name = action_names.get(action, f"UNKNOWN({action})")
         
         self._carplay_node.send_touch(norm_x, norm_y, TouchAction(action))
-        print(f"🖱️  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f})")
+        print(f"🖱️  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
 
 
 def main():

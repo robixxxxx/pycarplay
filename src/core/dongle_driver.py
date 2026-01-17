@@ -75,6 +75,7 @@ class DongleDriver:
         self.device: Optional[usb.core.Device] = None
         self.in_ep: Optional[usb.core.Endpoint] = None
         self.out_ep: Optional[usb.core.Endpoint] = None
+        self.config: Optional[DongleConfig] = None
         self.error_count = 0
         self._running = False
         self._read_thread: Optional[threading.Thread] = None
@@ -166,6 +167,17 @@ class DongleDriver:
             payload = message.serialise()
             bytes_written = self.out_ep.write(payload)
             return bytes_written == len(payload)
+        except usb.core.USBError as err:
+            error_str = str(err)
+            # Check for device disconnection
+            if "No such device" in error_str or "Entity not found" in error_str or err.errno == 19:
+                print(f"❌ USB device disconnected during send!")
+                self._running = False
+                for callback in self._failure_callbacks:
+                    callback()
+                return False
+            print(f"Failure sending message to dongle: {err}")
+            return False
         except Exception as err:
             print(f"Failure sending message to dongle: {err}")
             return False
@@ -223,6 +235,18 @@ class DongleDriver:
             except usb.core.USBTimeoutError:
                 # Timeout is normal, continue
                 continue
+            except usb.core.USBError as error:
+                # Check for device disconnection errors
+                error_str = str(error)
+                if "No such device" in error_str or "Entity not found" in error_str or error.errno == 19:
+                    print("❌ USB device disconnected!")
+                    self._running = False
+                    for callback in self._failure_callbacks:
+                        callback()
+                    return
+                # Other USB errors - log and continue
+                print(f"USB error in read loop: {error}")
+                self.error_count += 1
             except HeaderBuildError as error:
                 print(f"Error parsing header: {error}")
                 self.error_count += 1
@@ -280,10 +304,35 @@ class DongleDriver:
             time.sleep(2)
         print("Heartbeat loop stopped")
     
+    def update_video_settings(self, width: int, height: int, dpi: int):
+        """Update video resolution and DPI
+        
+        Args:
+            width: Video width in pixels
+            height: Video height in pixels
+            dpi: DPI value
+        """
+        if not self.config:
+            raise DriverStateError("No config - call start first")
+        
+        # Update config
+        self.config.width = width
+        self.config.height = height
+        self.config.dpi = dpi
+        
+        # Send updates to dongle
+        self.send(SendNumber(dpi, FileAddress.DPI))
+        self.send(SendBoxSettings(self.config))
+        
+        print(f"📤 Video settings sent to dongle: {width}x{height} @ {dpi} DPI")
+    
     def start(self, config: DongleConfig):
         """Start communication with device"""
         if not self.device:
             raise DriverStateError("No device set - call initialise first")
+        
+        # Store config for later updates
+        self.config = config
         
         self.error_count = 0
         self._running = True

@@ -48,7 +48,7 @@ class AudioPlayer(QObject):
         self._is_playing = False
         self._current_sample_rate = None
         self._buffering = True
-        self._min_buffer_samples = int(self.sample_rate * 1.5)  # 1.5s pre-buffer
+        self._min_buffer_samples = int(self.sample_rate * 4.0)  # 4.0s pre-buffer
         
         # === Statistics ===
         self._frames_received = 0
@@ -158,8 +158,8 @@ class AudioPlayer(QObject):
         Args:
             available: Current number of samples in buffer
         """
-        target_buffer = int(self.sample_rate * 1.5)
-        hard_max = int(self.sample_rate * 5.0)
+        target_buffer = int(self.sample_rate * 4.0)
+        hard_max = int(self.sample_rate * 10.0)
         
         if available > hard_max:
             # Emergency resync - buffer critically large

@@ -15,6 +15,7 @@ class VideoDecoder(QObject):
     """H264 video decoder using PyAV (FFmpeg)"""
     
     frameDecoded = Signal(QImage)  # Emits decoded frame as QImage
+    tooManyErrors = Signal()  # Emits when too many decode errors occur
     
     def __init__(self):
         super().__init__()
@@ -23,6 +24,9 @@ class VideoDecoder(QObject):
         self.stream = None
         self._mutex = QMutex()
         self._frame_count = 0
+        self._error_count = 0
+        self._consecutive_errors = 0
+        self._max_consecutive_errors = 10  # Restart after 10 errors in a row
         
         # Initialize decoder
         self._init_decoder()
@@ -80,6 +84,9 @@ class VideoDecoder(QObject):
                     # Emit signal
                     self.frameDecoded.emit(qimage)
                     
+                    # Reset consecutive error counter on success
+                    self._consecutive_errors = 0
+                    
                     if self._frame_count % 30 == 0:
                         print(f"Decoded frame #{self._frame_count}: {width}x{height}")
                     
@@ -88,8 +95,15 @@ class VideoDecoder(QObject):
                 return None
                 
             except Exception as e:
-                if self._frame_count < 5:  # Only print first few errors
+                self._error_count += 1
+                self._consecutive_errors += 1
+                
+                if self._consecutive_errors <= 5:  # Only print first few errors
                     print(f"Error decoding frame: {e}")
+                elif self._consecutive_errors == self._max_consecutive_errors:
+                    print(f"❌ TOO MANY DECODE ERRORS ({self._consecutive_errors} in a row) - requesting reconnection")
+                    self.tooManyErrors.emit()
+                
                 return None
     
     def flush(self):
@@ -119,6 +133,8 @@ class VideoDecoder(QObject):
                 self.codec.close()
                 self._init_decoder()
                 self._frame_count = 0
+                self._error_count = 0
+                self._consecutive_errors = 0
                 print("Decoder reset")
             except Exception as e:
                 print(f"Error resetting decoder: {e}")

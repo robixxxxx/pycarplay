@@ -31,7 +31,7 @@ class PhoneTypeConfig:
 class DongleConfig:
     width: int = 800
     height: int = 640
-    fps: int = 20
+    fps: int = 30
     dpi: int = 160
     format: int = 5
     ibox_version: int = 2
@@ -264,7 +264,10 @@ class DongleDriver:
                 
                 self.error_count += 1
             except Exception as error:
-                print(f"Error in read loop: {error}")
+                error_str = str(error)
+                # Don't spam common non-critical errors
+                if "BLUETOOTH_ADDRESS" not in error_str and "BLUETOOTH" not in error_str:
+                    print(f"Error in read loop: {error}")
                 self.error_count += 1
         
         print("Read loop stopped")

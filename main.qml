@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: mainWindow
@@ -239,6 +240,75 @@ ApplicationWindow {
                 }
             }
         }  // End of Video Player Area Rectangle
+        
+        // Media Info Bar (Music & Navigation)
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 60
+            color: "#2d2d2d"
+            radius: 8
+            visible: videoController.currentSong !== "" || videoController.navigationInfo !== ""
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 15
+
+                // Music Info
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    visible: videoController.currentSong !== ""
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 2
+                        
+                        Label {
+                            text: "🎵 " + videoController.currentSong
+                            color: "#ffffff"
+                            font.pixelSize: 14
+                            font.bold: true
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                        
+                        Label {
+                            text: videoController.currentArtist
+                            color: "#aaa"
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+                
+                // Separator
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: 40
+                    color: "#444"
+                    visible: videoController.currentSong !== "" && videoController.navigationInfo !== ""
+                }
+                
+                // Navigation Info
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    visible: videoController.navigationInfo !== ""
+                    
+                    Label {
+                        anchors.fill: parent
+                        text: "🗺️  " + videoController.navigationInfo
+                        color: "#4CAF50"
+                        font.pixelSize: 14
+                        font.bold: true
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+            }
+        }
 
         // Info Bar
         Rectangle {
@@ -286,6 +356,69 @@ ApplicationWindow {
                     font.pixelSize: 12
                 }
                 
+                // Media logging toggle button
+                Button {
+                    id: loggingButton
+                    text: "📝"
+                    font.pixelSize: 16
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 30
+                    property bool loggingEnabled: false
+                    ToolTip.visible: hovered
+                    ToolTip.text: loggingEnabled ? "Stop media logging" : "Start media logging"
+                    onClicked: {
+                        if (loggingEnabled) {
+                            videoController.stopMediaLogging()
+                            loggingEnabled = false
+                            text = "📝"
+                        } else {
+                            videoController.startMediaLogging()
+                            loggingEnabled = true
+                            text = "📝✅"
+                        }
+                    }
+                }
+                
+                // Microphone button
+                Button {
+                    id: micButton
+                    text: "🎤"
+                    font.pixelSize: 16
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 30
+                    property bool micEnabled: false
+                    ToolTip.visible: hovered
+                    ToolTip.text: micEnabled ? "Stop microphone" : "Start microphone (Siri/Calls)"
+                    onClicked: {
+                        if (micEnabled) {
+                            videoController.stopMicrophone()
+                            micEnabled = false
+                            text = "🎤"
+                        } else {
+                            videoController.startMicrophone()
+                            micEnabled = true
+                            text = "🎤🔴"
+                        }
+                    }
+                }
+                
+                // Audio toggle button
+                Button {
+                    id: audioButton
+                    text: "🔊"
+                    font.pixelSize: 16
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 30
+                    property bool audioEnabled: true
+                    ToolTip.visible: hovered
+                    ToolTip.text: audioEnabled ? "Mute audio" : "Unmute audio"
+                    onClicked: {
+                        videoController.toggleAudio()
+                        audioEnabled = !audioEnabled
+                        text = audioEnabled ? "🔊" : "🔇"
+                    }
+                }
+                
                 // Help button
                 Button {
                     text: "?"
@@ -293,6 +426,8 @@ ApplicationWindow {
                     Layout.preferredWidth: 30
                     Layout.preferredHeight: 30
                     onClicked: helpDialog.visible = !helpDialog.visible
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Keyboard shortcuts"
                 }
             }
         }
@@ -384,6 +519,271 @@ ApplicationWindow {
                 Layout.alignment: Qt.AlignHCenter
                 onClicked: helpDialog.visible = false
             }
+        }
+    }
+    
+    // File dialog for icon selection
+    FileDialog {
+        id: iconFileDialog
+        title: "Select CarPlay Icon"
+        nameFilters: ["PNG images (*.png)", "All files (*)"]
+        onAccepted: {
+            var path = iconFileDialog.currentFile.toString()
+            // Remove "file://" prefix
+            path = path.replace(/^(file:\/{2})/,"")
+            // Decode URI
+            path = decodeURIComponent(path)
+            iconPathField.text = path
+        }
+    }
+    
+    // CarPlay Config Panel (shown instead of video when command 1 received)
+    Rectangle {
+        id: configPanel
+        anchors.fill: parent
+        color: "#1e1e1e"
+        visible: false
+        z: 500
+        
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 30
+            width: 600
+            
+            Label {
+                text: "⚙️ CarPlay Configuration"
+                font.pixelSize: 32
+                font.bold: true
+                color: "#ffffff"
+                Layout.alignment: Qt.AlignHCenter
+            }
+            
+            // Microphone settings
+            GroupBox {
+                title: "🎤 Microphone Settings"
+                Layout.fillWidth: true
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 15
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Microphone Device:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        ComboBox {
+                            id: micDeviceCombo
+                            model: ["Default", "Built-in Microphone", "External Mic"]
+                            Layout.fillWidth: true
+                        }
+                    }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Sample Rate:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        ComboBox {
+                            id: sampleRateCombo
+                            model: ["16000 Hz", "44100 Hz", "48000 Hz"]
+                            currentIndex: 0
+                            Layout.fillWidth: true
+                        }
+                    }
+                    
+                    CheckBox {
+                        text: "Enable noise cancellation"
+                        checked: true
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+            
+            // Audio settings
+            GroupBox {
+                title: "🔊 Audio Settings"
+                Layout.fillWidth: true
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 15
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Output Device:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        ComboBox {
+                            id: audioDeviceCombo
+                            model: ["Default", "Built-in Speakers", "HDMI Output"]
+                            Layout.fillWidth: true
+                        }
+                    }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Buffer Size:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        Slider {
+                            from: 10
+                            to: 40
+                            value: 20
+                            stepSize: 5
+                            Layout.fillWidth: true
+                            
+                            Label {
+                                anchors.right: parent.right
+                                anchors.rightMargin: -60
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Math.round(parent.value) + "s"
+                                color: "#ffffff"
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // CarPlay appearance settings
+            GroupBox {
+                title: "🚗 CarPlay Appearance"
+                Layout.fillWidth: true
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 15
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Icon Label:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        TextField {
+                            id: iconLabelField
+                            placeholderText: "PyCarPlay"
+                            text: "PyCarPlay"
+                            Layout.fillWidth: true
+                        }
+                    }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Icon Image:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        TextField {
+                            id: iconPathField
+                            placeholderText: "/path/to/icon.png"
+                            text: "/Users/robertburda/dev/python/pycarplay/logo.png"
+                            Layout.fillWidth: true
+                        }
+                        
+                        Button {
+                            text: "Browse..."
+                            onClicked: {
+                                iconFileDialog.open()
+                            }
+                        }
+                    }
+                    
+                    Label {
+                        text: "Icon should be PNG format, recommended size: 256x256 pixels"
+                        color: "#888"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                    
+                    Label {
+                        text: "Label will appear on iPhone's CarPlay home screen"
+                        color: "#888"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+            
+            // Action buttons
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 20
+                
+                Button {
+                    text: "Apply Settings"
+                    font.pixelSize: 16
+                    Layout.preferredWidth: 150
+                    Layout.preferredHeight: 40
+                    onClicked: {
+                        // Apply CarPlay icon if specified
+                        if (iconPathField.text !== "") {
+                            videoController.setCarPlayIcon(iconPathField.text)
+                        }
+                        
+                        // Apply CarPlay label if changed
+                        if (iconLabelField.text !== "") {
+                            videoController.setCarPlayLabel(iconLabelField.text)
+                        }
+                        
+                        console.log("Settings applied")
+                        configPanel.visible = false
+                    }
+                }
+                
+                Button {
+                    text: "Cancel"
+                    font.pixelSize: 16
+                    Layout.preferredWidth: 150
+                    Layout.preferredHeight: 40
+                    onClicked: {
+                        configPanel.visible = false
+                    }
+                }
+            }
+        }
+    }
+    
+    // Connect signals from controller
+    Connections {
+        target: videoController
+        
+        function onShowConfigPanel() {
+            configPanel.visible = true
+        }
+        
+        function onHideConfigPanel() {
+            configPanel.visible = false
         }
     }
 }

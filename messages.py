@@ -24,6 +24,10 @@ class AudioCommand(IntEnum):
     AudioMediaStop = 11
     AudioAlertStart = 12
     AudioAlertStop = 13
+    Unknown_14 = 14
+    Unknown_15 = 15
+    Unknown_16 = 16  # Seen in logs
+    Unknown_17 = 17
 
 
 class PhoneType(IntEnum):
@@ -186,7 +190,10 @@ class BluetoothAddress(Message):
     
     def __init__(self, header: MessageHeader, data: bytes):
         super().__init__(header)
-        self.address = data.decode('ascii', errors='ignore').rstrip('\x00')
+        try:
+            self.address = data.decode('ascii', errors='ignore').rstrip('\x00') if data else ""
+        except Exception:
+            self.address = ""
 
 
 class BluetoothPIN(Message):

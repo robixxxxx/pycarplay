@@ -56,6 +56,7 @@ class CarplayNode:
         
         # Callback
         self.onmessage: Optional[Callable[[CarplayMessage], None]] = None
+        self._microphone_callback: Optional[Callable[[str, AudioCommand], None]] = None
         
         # Setup driver callbacks
         self.dongle_driver.on_message(self._on_driver_message)
@@ -125,11 +126,19 @@ class CarplayNode:
     def _handle_audio_command(self, command: AudioCommand):
         """Handle audio commands (Siri, phone calls)"""
         if command in (AudioCommand.AudioSiriStart, AudioCommand.AudioPhonecallStart):
-            print(f"Audio started: {command.name}")
-            # TODO: Start microphone recording
+            print(f"🎤 Audio started: {command.name}")
+            # Call microphone start callback
+            if self._microphone_callback:
+                self._microphone_callback('start', command)
+            else:
+                print(f"🎤 WARNING: No microphone callback set!")
         elif command in (AudioCommand.AudioSiriStop, AudioCommand.AudioPhonecallStop):
-            print(f"Audio stopped: {command.name}")
-            # TODO: Stop microphone recording
+            print(f"🎤 Audio stopped: {command.name}")
+            # Call microphone stop callback
+            if self._microphone_callback:
+                self._microphone_callback('stop', command)
+            else:
+                print(f"🎤 WARNING: No microphone callback set!")
     
     def _start_frame_interval(self, interval_ms: int):
         """Start sending frame requests periodically"""

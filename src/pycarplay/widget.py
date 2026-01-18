@@ -144,13 +144,22 @@ class CarPlayWidget(QWidget):
         
         # Add import paths for components
         engine = self.qml_widget.engine()
-        components_path = Path(__file__).parent / 'ui' / 'components'
+        ui_path = Path(__file__).parent / 'ui'
+        components_path = ui_path / 'components'
+        engine.addImportPath(str(ui_path))
         engine.addImportPath(str(components_path))
         
-        # Register video provider
+        # Register video provider BEFORE loading QML
         self.qml_widget.rootContext().setContextProperty("videoProvider", self.video_provider)
         
-        # Load QML
+        # Create and register controller BEFORE loading QML
+        self.controller = VideoStreamController(
+            video_provider=self.video_provider,
+            config=self.config
+        )
+        self.qml_widget.rootContext().setContextProperty("videoController", self.controller)
+        
+        # Load QML (now videoController is available)
         self.qml_widget.setSource(QUrl.fromLocalFile(str(qml_path)))
         
         # Check for QML errors
@@ -184,17 +193,8 @@ class CarPlayWidget(QWidget):
         return default_qml
     
     def _setup_controller(self):
-        """Setup the CarPlay controller"""
-        # Create controller
-        self.controller = VideoStreamController(
-            video_provider=self.video_provider,
-            config=self.config
-        )
-        
-        # Register controller with QML
-        self.qml_widget.rootContext().setContextProperty("videoController", self.controller)
-        
-        # Apply video configuration
+        """Apply initial video configuration to controller"""
+        # Apply video configuration (controller already created in _setup_ui)
         self.controller.apply_video_config(
             self.config.video.width,
             self.config.video.height,

@@ -42,9 +42,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/robertburda/pycarplay"
-"Bug Reports" = "https://github.com/robertburda/pycarplay/issues"
-Source = "https://github.com/robertburda/pycarplay"
+Homepage = "https://github.com/robixxxxx/pycarplay"
+"Bug Reports" = "https://github.com/robixxxxx/pycarplay/issues"
+Source = "https://github.com/robixxxxx/pycarplay"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

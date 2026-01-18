@@ -49,7 +49,7 @@ class MediaLogger:
         log_path = os.path.join(self.log_dir, f"carplay_media_{timestamp}.jsonl")
         self.log_file = open(log_path, 'w')
         self.enabled = True
-        print(f"📝 Media logging started: {log_path}")
+        print(f" Media logging started: {log_path}")
     
     def stop(self):
         """Stop logging and close file"""
@@ -57,7 +57,7 @@ class MediaLogger:
             self.log_file.close()
             self.log_file = None
         self.enabled = False
-        print(f"📝 Media logging stopped")
+        print(f" Media logging stopped")
     
     def log_music(self, song, artist, album, play_time_ms, duration_ms):
         """Log music playback event

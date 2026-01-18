@@ -1,24 +1,51 @@
 # PyCarPlay-Qt
 
-🚗 **CarPlay Widget for PyQt6 Applications**
+**CarPlay Widget for PyQt6 Applications**
 
-Python widget component for embedding CarPlay in PyQt6 apps. Designed for integration with physical hardware buttons, GPIO, serial controls, and custom input devices.
+Python widget component for embedding CarPlay in PyQt6 apps. Supports hardware integration via GPIO, serial, CAN bus, and custom protocols.
+
+## About
+
+Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay) by Rhys Morgan. Adapted for Python/Qt with:
+- Flexible configuration system
+- Protocol-agnostic design (not tied to any vehicle communication protocol)
+- Direct API for hardware integration
 
 ## Key Features
 
-- ✅ **Embeddable Widget** - Component for your PyQt6 app
-- ✅ **Hardware Button Support** - Direct API calls for GPIO, serial, CAN bus
-- ✅ **Signal/Slot API** - Full Qt integration
-- ✅ CarPlay protocol via USB dongle
-- 🎥 H.264 video decoding
-- 🔊 Audio playback with volume control
-- 📱 Touch and keyboard input
+- **Embeddable Widget** - Add to any PyQt6 application
+- **Hardware Control** - Direct API calls from GPIO, serial, CAN bus
+- **Qt Integration** - Signals/slots for event handling
+- **Configurable** - Video, audio, UI settings
+- CarPlay protocol via USB dongle
+- H.264 video decoding
+- Audio playback with volume control
+- Touch and keyboard input
 
 ## Installation
 
+### Prerequisites
+
+Install libusb:
+
+**macOS:**
 ```bash
-pip install git+https://github.com/robertburda/pycarplay.git
+brew install libusb
 ```
+
+**Linux:**
+```bash
+sudo apt-get install libusb-1.0-0-dev  # Ubuntu/Debian
+sudo dnf install libusb-devel          # Fedora/RHEL
+```
+
+### Install PyCarPlay
+
+```bash
+pip install git+https://github.com/robixxxxx/pycarplay.git
+```
+
+See [INSTALL.md](INSTALL.md) for detailed instructions and USB permissions setup.
 
 ## Quick Start - Basic Embedding
 
@@ -207,14 +234,24 @@ carplay = CarPlayWidget(config=config)
 
 ## Requirements
 
+### System
 - Python >= 3.9
+- libusb (install via `brew install libusb` or `apt-get install libusb-1.0-0-dev`)
+
+### Python Packages
 - PySide6 >= 6.4.0
+- pyusb >= 1.2.1
+- opencv-python >= 4.8.0
+- numpy >= 1.24.0
+- pyaudio >= 0.2.13
+
+### Hardware
 - Compatible CarPlay USB dongle
+
+## Credits
+
+Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay) by Rhys Morgan.
 
 ## License
 
 MIT License
-
----
-
-**Perfect for automotive, embedded systems, and custom hardware projects!** 🚗

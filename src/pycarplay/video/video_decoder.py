@@ -54,9 +54,9 @@ class VideoDecoder(QObject):
         try:
             self.codec = av.CodecContext.create('h264', 'r')
             self.codec.thread_type = 'AUTO'
-            print("🎥 H264 decoder initialized")
+            print(" H264 decoder initialized")
         except Exception as e:
-            print(f"❌ Failed to initialize H264 decoder: {e}")
+            print(f" Failed to initialize H264 decoder: {e}")
             raise
     
     # === Public API ===
@@ -89,7 +89,7 @@ class VideoDecoder(QObject):
                     # Log progress
                     self._frame_count += 1
                     if self._frame_count % 30 == 0:
-                        print(f"🎥 Decoded frame #{self._frame_count}: {qimage.width()}x{qimage.height()}")
+                        print(f" Decoded frame #{self._frame_count}: {qimage.width()}x{qimage.height()}")
                     
                     return qimage
                 
@@ -137,9 +137,9 @@ class VideoDecoder(QObject):
         self._consecutive_errors += 1
         
         if self._consecutive_errors <= 5:
-            print(f"⚠️ Error decoding frame: {error}")
+            print(f" Error decoding frame: {error}")
         elif self._consecutive_errors == self._max_consecutive_errors:
-            print(f"❌ TOO MANY DECODE ERRORS ({self._consecutive_errors} in a row)")
+            print(f" TOO MANY DECODE ERRORS ({self._consecutive_errors} in a row)")
             self.tooManyErrors.emit()
     
     def flush(self):
@@ -155,7 +155,7 @@ class VideoDecoder(QObject):
                     qimage = self._convert_frame_to_qimage(frame)
                     self.frameDecoded.emit(qimage)
         except Exception as e:
-            print(f"⚠️ Error flushing decoder: {e}")
+            print(f" Error flushing decoder: {e}")
     
     def reset(self):
         """Reset decoder state
@@ -170,7 +170,7 @@ class VideoDecoder(QObject):
                 self._frame_count = 0
                 self._error_count = 0
                 self._consecutive_errors = 0
-                print("🔄 Decoder reset")
+                print(" Decoder reset")
             except Exception as e:
-                print(f"❌ Error resetting decoder: {e}")
+                print(f" Error resetting decoder: {e}")
 

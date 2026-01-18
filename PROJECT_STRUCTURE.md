@@ -1,96 +1,95 @@
-# PyCarPlay Module - Project Summary
+# PyCarPlay Module - Project Structure
 
-## 🎯 Co to jest PyCarPlay?
+## Overview
 
-**PyCarPlay to widget Qt do embedowania w aplikacjach, NIE standalone aplikacja.**
+PyCarPlay is an embeddable Qt widget for CarPlay integration in Python applications. Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay) by Rhys Morgan, adapted for Python/Qt.
 
-Przeznaczony specjalnie do integracji z:
-- 🔘 Fizycznymi przyciskami (GPIO, Arduino, Raspberry Pi)
-- 🔌 Portami szeregowymi (UART, Serial)
-- 🚗 Magistralami CAN
-- 🎮 Niestandardowymi kontrolerami
-- 🖥️ Systemami automotive/embedded
+**Key Design Points:**
+- Widget component (not standalone application)
+- Protocol-agnostic (developer chooses vehicle communication method)
+- Direct API for hardware integration (GPIO, serial, CAN, network)
+- Configurable via dataclasses
 
-## 💡 Główna Idea
-
-Widget dostarcza **czyste API** do wywoływania akcji CarPlay:
+## Basic Usage
 
 ```python
+from pycarplay import CarPlayWidget
+
 carplay = CarPlayWidget()
 
-# Wywołania bezpośrednie z hardware:
-def on_physical_button_home():
-    carplay.send_home()  # Bezpośrednie wywołanie!
-
-def on_steering_wheel_next():
-    carplay.send_next_track()  # Bezpośrednie wywołanie!
+# Direct method calls from any source:
+carplay.send_home()          # From GPIO interrupt
+carplay.send_play_pause()    # From CAN message
+carplay.send_next_track()    # From serial command
 ```
 
-**Nie potrzebujesz Qt GUI** - możesz wywołać metody z:
-- Przerwań GPIO
-- Callbacków serial port
-- Handlerów CAN bus
-- Thread'ów sieciowych
-- Dowolnego miejsca w kodzie!
+Methods can be called from:
+- GPIO interrupts
+- Serial port handlers
+- CAN bus message callbacks
+- Network API endpoints
+- Any Python code
 
-## 📦 Struktura Modułu
+## Module Structure
 
 ```
 pycarplay/
-├── setup.py                    # Konfiguracja instalacji pip
-├── pyproject.toml              # Nowoczesna konfiguracja pakietu
-├── MANIFEST.in                 # Pliki do dołączenia w dystrybucji
-├── README.md                   # Pełna dokumentacja
-├── QUICKSTART.md               # Szybki start (5 min)
-├── INSTALL.md                  # Instrukcje instalacji
+├── setup.py                    # Pip installation config
+├── pyproject.toml              # Modern package config
+├── MANIFEST.in                 # Distribution files
+├── README.md                   # Full documentation
+├── QUICKSTART.md               # Quick start guide
+├── INSTALL.md                  # Installation instructions
+├── CREDITS.md                  # Project credits
 │
-├── examples/                   # Przykładowe aplikacje
-│   ├── basic_usage.py         # Podstawowe użycie (standalone window)
-│   ├── custom_config.py       # Niestandardowa konfiguracja
-│   └── embedded_widget.py     # Widget w istniejącej aplikacji
+├── examples/                   # Example applications
+│   ├── basic_usage.py         # Basic usage
+│   ├── custom_config.py       # Custom configuration
+│   ├── embedded_widget.py     # Widget in existing app
+│   └── hardware_buttons.py    # Hardware integration examples
 │
 └── src/
-    └── pycarplay/             # Główny pakiet
-        ├── __init__.py        # API: CarPlayWidget, CarPlayWindow, CarPlayConfig
-        ├── version.py         # Wersja modułu
-        ├── config.py          # System konfiguracji
-        ├── widget.py          # CarPlayWidget i CarPlayWindow
-        ├── controller.py      # VideoStreamController (logika)
+    └── pycarplay/             # Main package
+        ├── __init__.py        # API: CarPlayWidget, CarPlayConfig
+        ├── version.py         # Module version
+        ├── config.py          # Configuration system
+        ├── widget.py          # CarPlayWidget class
+        ├── controller.py      # VideoStreamController
         │
-        ├── core/              # Rdzeń CarPlay
+        ├── core/              # CarPlay core
         │   ├── carplay_node.py
         │   ├── dongle_driver.py
         │   └── media_logger.py
         │
-        ├── video/             # Obsługa video
+        ├── video/             # Video handling
         │   ├── video_decoder.py
         │   └── video_provider.py
         │
-        ├── audio/             # Obsługa audio
+        ├── audio/             # Audio handling
         │   ├── audio_player.py
         │   └── microphone.py
         │
-        ├── protocol/          # Protokół komunikacji
+        ├── protocol/          # Communication protocol
         │   ├── messages.py
         │   └── sendable.py
         │
-        └── ui/                # Interfejs użytkownika
-            ├── default/       # Domyślny UI
+        └── ui/                # User interface
+            ├── default/       # Default UI
             │   └── Main.qml
-            └── components/    # Komponenty QML
+            └── components/    # QML components
                 ├── qmldir
                 ├── CarPlayVideo.qml
                 └── CarPlaySettings.qml
 ```
 
-## 🎯 Główne Funkcje
+## Main Features
 
-### 1. **Modularność**
-- Pełen pakiet Python instalowany przez `pip`
-- Czyste API: `from pycarplay import CarPlayWidget, CarPlayConfig`
-- Komponenty QML do ponownego użycia
+### 1. Modular Package
+- Installable via `pip`
+- Clean API: `from pycarplay import CarPlayWidget, CarPlayConfig`
+- Reusable QML components
 
-### 2. **Konfiguracja**
+### 2. Configuration
 ```python
 config = CarPlayConfig()
 config.video.width = 1920
@@ -99,22 +98,19 @@ config.dongle.auto_connect = True
 config.ui.custom_qml_path = "/path/to/my.qml"
 ```
 
-### 3. **Łatwa Integracja**
+### 3. Integration
 ```python
-# Standalone
-window = CarPlayWindow()
-
-# Embedded
+# Embedded widget
 carplay = CarPlayWidget()
 my_app.setCentralWidget(carplay)
 ```
 
-### 4. **Customizacja UI**
-- Domyślne komponenty QML (`CarPlayVideo`, `CarPlaySettings`)
-- Możliwość zastąpienia własnym QML
-- Import komponentów: `import PyCarPlay.Components`
+### 4. UI Customization
+- Default QML components (`CarPlayVideo`, `CarPlaySettings`)
+- Custom QML support
+- Import components: `import PyCarPlay.Components`
 
-## 📝 Klasy Konfiguracji
+## Configuration Classes
 
 ### `VideoConfig`
 - width, height, dpi, fps
@@ -133,45 +129,66 @@ my_app.setCentralWidget(carplay)
 - show_touch_indicator, show_media_info
 
 ### `CarPlayConfig`
-- Łączy wszystkie powyższe
-- Metody: `from_dict()`, `from_json_file()`, `to_json_file()`
+- Combines all above
+- Methods: `from_dict()`, `from_json_file()`, `to_json_file()`
 
-## 🔌 API Widgetów
+## Widget API
 
 ### `CarPlayWidget(config, custom_qml_path, parent)`
-- `connect_dongle()` - połącz ręcznie
-- `disconnect_dongle()` - rozłącz
-- `get_controller()` - dostęp do VideoStreamController
-- `set_config(config)` - zmień konfigurację
 
-### `CarPlayWindow(config, custom_qml_path)`
-- Dziedziczy z `CarPlayWidget`
-- Standalone window bez parenta
+**Status Methods:**
+- `is_connected()` - Check if dongle connected
+- `is_phone_connected()` - Check if phone connected
+- `get_status()` - Get status string
+- `get_current_song()` - Get current song
+- `get_current_artist()` - Get current artist
 
-### `VideoStreamController`
-Dostępny przez `widget.get_controller()`:
-- **Signals**: `dongleStatusChanged`, `currentSongChanged`, `videoFrameReceived`
-- **Methods**: `connectDongle()`, `setVolume()`, `sendKey()`
+**Control Methods:**
+- `connect()` - Connect to dongle
+- `disconnect()` - Disconnect
+- `send_home()` - Home button
+- `send_back()` - Back button
+- `send_play_pause()` - Play/Pause
+- `send_next_track()` - Next track
+- `send_previous_track()` - Previous track
+- `set_volume(float)` - Set volume 0.0-1.0
+- `toggle_audio()` - Mute/unmute
+- `show_settings()` - Show settings panel
+- `hide_settings()` - Hide settings panel
 
-## 📦 Instalacja
+**Signals:**
+- `phoneConnected` - Phone plugged in
+- `phoneDisconnected` - Phone unplugged
+- `dongleStatusChanged(str)` - Status changed
+- `currentSongChanged(str)` - Song changed
+- `currentArtistChanged(str)` - Artist changed
+- `videoFrameReceived(QImage)` - New video frame
+
+**Advanced:**
+- `get_controller()` - Access to VideoStreamController
+
+## Installation
 
 ```bash
-# Z GitHub
-pip install git+https://github.com/robertburda/pycarplay.git
+# From GitHub
+pip install git+https://github.com/robixxxxx/pycarplay.git
 
-# Lokalna (development)
+# Local development
 pip install -e .
 ```
 
-## 💡 Przykłady Użycia
+## Usage Examples
 
-### Minimal
+### Basic
 ```python
-from pycarplay import CarPlayWindow
-from PySide6.QtWidgets import QApplication
+from pycarplay import CarPlayWidget
+from PySide6.QtWidgets import QApplication, QMainWindow
 
 app = QApplication([])
-CarPlayWindow().show()
+window = QMainWindow()
+carplay = CarPlayWidget()
+window.setCentralWidget(carplay)
+window.show()
 app.exec()
 ```
 
@@ -179,25 +196,28 @@ app.exec()
 ```python
 config = CarPlayConfig()
 config.video.width = 1920
-window = CarPlayWindow(config=config)
+config.video.height = 1080
+carplay = CarPlayWidget(config=config)
 ```
 
-### Embedded
+### Hardware Integration
 ```python
-class MyApp(QMainWindow):
-    def __init__(self):
-        carplay = CarPlayWidget()
-        self.setCentralWidget(carplay)
+carplay = CarPlayWidget()
+
+# GPIO example
+def on_gpio_button():
+    if carplay.is_phone_connected():
+        carplay.send_home()
+
+# CAN bus example
+def on_can_message(msg_id, data):
+    if msg_id == 0x123:  # Steering wheel
+        carplay.send_play_pause()
 ```
 
-### Custom QML
-```python
-carplay = CarPlayWidget(custom_qml_path="my_ui.qml")
-```
+## QML Components
 
-## 🎨 Komponenty QML
-
-Dostępne do importu w custom QML:
+Available for import in custom QML:
 
 ```qml
 import PyCarPlay.Components
@@ -215,63 +235,55 @@ CarPlaySettings {
 }
 ```
 
-## 🚀 Workflow Developera
+## Development Workflow
 
-1. **Instalacja dev**:
+1. **Install for development**:
 ```bash
-git clone https://github.com/robertburda/pycarplay.git
+git clone https://github.com/robixxxxx/pycarplay.git
 cd pycarplay
 pip install -e ".[dev]"
 ```
 
-2. **Testowanie**:
+2. **Test**:
 ```bash
 python examples/basic_usage.py
 ```
 
-3. **Modyfikacja**:
-- Edytuj pliki w `src/pycarplay/`
-- Zmiany dostępne natychmiast (editable install)
+3. **Modify**:
+- Edit files in `src/pycarplay/`
+- Changes available immediately (editable install)
 
-4. **Budowanie**:
+4. **Build**:
 ```bash
 python -m build
 ```
 
-## 📚 Dokumentacja
+## Documentation Files
 
-- **README.md** - Pełna dokumentacja z API reference
-- **QUICKSTART.md** - Start w 5 minut
-- **INSTALL.md** - Szczegóły instalacji
-- **examples/** - Działające przykłady
+- **README.md** - Full documentation with API reference
+- **QUICKSTART.md** - Quick start guide
+- **INSTALL.md** - Installation details
+- **CREDITS.md** - Project credits
+- **examples/** - Working examples
 
-## ✅ Co Zostało Zrobione
+## Installation
 
-1. ✅ Setup.py i pyproject.toml dla instalacji pip
-2. ✅ Rozdzielone komponenty QML (CarPlayVideo, CarPlaySettings)
-3. ✅ System konfiguracji (CarPlayConfig z dataclasses)
-4. ✅ CarPlayWidget i CarPlayWindow
-5. ✅ Przykładowe aplikacje (3 przykłady)
-6. ✅ Pełna dokumentacja (README, QUICKSTART, INSTALL)
-
-## 🎯 Użycie
-
-**Dla użytkowników końcowych:**
+**End users:**
 ```bash
-pip install git+https://github.com/robertburda/pycarplay.git
+pip install git+https://github.com/robixxxxx/pycarplay.git
 ```
 
-**Dla developerów:**
+**Developers:**
 ```bash
-git clone ...
+git clone https://github.com/robixxxxx/pycarplay.git
 pip install -e ".[dev]"
 ```
 
-**W aplikacji:**
+**In application:**
 ```python
 from pycarplay import CarPlayWidget, CarPlayConfig
 ```
 
----
+## Credits
 
-**Moduł gotowy do publikacji i użycia!** 🎉
+Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay) by Rhys Morgan.

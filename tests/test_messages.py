@@ -21,7 +21,7 @@ def test_header():
     
     assert parsed.type == MessageType.HeartBeat
     assert parsed.length == 0
-    print("✓ Header test passed\n")
+    print(" Header test passed\n")
 
 
 def test_sendable():
@@ -49,7 +49,7 @@ def test_sendable():
     num_bytes = num.serialise()
     print(f"SendNumber ({len(num_bytes)} bytes): {num_bytes.hex()}")
     
-    print("✓ Sendable messages test passed\n")
+    print(" Sendable messages test passed\n")
 
 
 def test_video_data():
@@ -74,7 +74,7 @@ def test_video_data():
     assert video_msg.width == 1280
     assert video_msg.height == 720
     assert len(video_msg.data) == 1024
-    print("✓ VideoData test passed\n")
+    print(" VideoData test passed\n")
 
 
 def test_plugged():
@@ -93,7 +93,7 @@ def test_plugged():
     
     assert plugged_msg.phone_type == PhoneType.CarPlay
     assert plugged_msg.wifi == 1
-    print("✓ Plugged test passed\n")
+    print(" Plugged test passed\n")
 
 
 def test_round_trip():
@@ -113,7 +113,7 @@ def test_round_trip():
     
     assert header.type == MessageType.HeartBeat
     assert header.length == 0
-    print("✓ Round-trip test passed\n")
+    print(" Round-trip test passed\n")
 
 
 if __name__ == "__main__":
@@ -129,9 +129,9 @@ if __name__ == "__main__":
         test_round_trip()
         
         print("=" * 50)
-        print("All tests passed! ✓")
+        print("All tests passed! ")
         print("=" * 50)
     except Exception as e:
-        print(f"\n❌ Test failed: {e}")
+        print(f"\n Test failed: {e}")
         import traceback
         traceback.print_exc()

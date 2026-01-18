@@ -100,7 +100,7 @@ class DongleDriver:
                 idProduct=device_info['product_id']
             )
             if device:
-                print(f"✅ Found CarPlay dongle: {hex(device.idVendor)}:{hex(device.idProduct)}")
+                print(f" Found CarPlay dongle: {hex(device.idVendor)}:{hex(device.idProduct)}")
                 return device
         
         return None
@@ -174,7 +174,7 @@ class DongleDriver:
             error_str = str(err)
             # Check for device disconnection
             if "No such device" in error_str or "Entity not found" in error_str or err.errno == 19:
-                print(f"❌ USB device disconnected during send!")
+                print(f" USB device disconnected during send!")
                 self._running = False
                 for callback in self._failure_callbacks:
                     callback()
@@ -242,7 +242,7 @@ class DongleDriver:
                 # Check for device disconnection errors
                 error_str = str(error)
                 if "No such device" in error_str or "Entity not found" in error_str or error.errno == 19:
-                    print("❌ USB device disconnected!")
+                    print(" USB device disconnected!")
                     self._running = False
                     for callback in self._failure_callbacks:
                         callback()
@@ -327,7 +327,7 @@ class DongleDriver:
         self.send(SendNumber(dpi, FileAddress.DPI))
         self.send(SendBoxSettings(self.config))
         
-        print(f"📤 Video settings sent to dongle: {width}x{height} @ {dpi} DPI")
+        print(f" Video settings sent to dongle: {width}x{height} @ {dpi} DPI")
     
     def start(self, config: DongleConfig):
         """Start communication with device"""
@@ -380,11 +380,11 @@ class DongleDriver:
         """Send disconnect phone command to notify phone before closing"""
         try:
             from ..protocol.sendable import SendDisconnectPhone
-            print("📱 Sending disconnect command to phone...")
+            print(" Sending disconnect command to phone...")
             self.send(SendDisconnectPhone())
             time.sleep(0.5)  # Give phone time to process disconnect
         except Exception as e:
-            print(f"⚠️  Failed to send disconnect command: {e}")
+            print(f"  Failed to send disconnect command: {e}")
     
     def close(self):
         """Close device connection"""

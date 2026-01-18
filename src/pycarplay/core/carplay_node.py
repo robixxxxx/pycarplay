@@ -147,17 +147,17 @@ class CarplayNode:
     def _handle_audio_command(self, command: AudioCommand):
         """Handle audio commands and trigger microphone callback"""
         if command in (AudioCommand.AudioSiriStart, AudioCommand.AudioPhonecallStart):
-            print(f"🎤 Audio started: {command.name}")
+            print(f" Audio started: {command.name}")
             if self._microphone_callback:
                 self._microphone_callback('start', command)
             else:
-                print(f"⚠️  No microphone callback set")
+                print(f"  No microphone callback set")
         elif command in (AudioCommand.AudioSiriStop, AudioCommand.AudioPhonecallStop):
-            print(f"🎤 Audio stopped: {command.name}")
+            print(f" Audio stopped: {command.name}")
             if self._microphone_callback:
                 self._microphone_callback('stop', command)
             else:
-                print(f"⚠️  No microphone callback set")
+                print(f"  No microphone callback set")
     
     def _on_driver_failure(self):
         """Handle driver failure"""
@@ -167,7 +167,7 @@ class CarplayNode:
     
     def _start_frame_interval(self, interval_ms: int):
         """Start sending frame requests periodically"""
-        print(f"⏱️  Frame interval: {interval_ms}ms")
+        print(f"  Frame interval: {interval_ms}ms")
         self._frame_interval_active = True
         
         def send_frame():
@@ -203,16 +203,16 @@ class CarplayNode:
         Returns:
             USB device object
         """
-        print("🔍 Looking for USB device...")
+        print(" Looking for USB device...")
         device = None
         
         while device is None:
             device = self.dongle_driver.find_device()
             if device is None:
-                print("⏳ No device found, retrying in 3s...")
+                print(" No device found, retrying in 3s...")
                 time.sleep(self.USB_WAIT_PERIOD_MS / 1000.0)
         
-        print(f"✅ Found device: {device}")
+        print(f" Found device: {device}")
         return device
     
     def start(self):
@@ -225,14 +225,14 @@ class CarplayNode:
             True on success
         """
         try:
-            print("🚀 Initializing dongle driver...")
+            print(" Initializing dongle driver...")
             self.dongle_driver.initialise()
             
-            print("📡 Starting communication...")
+            print(" Starting communication...")
             self.dongle_driver.start(self.config)
             
             # Setup pair timeout (send wifiPair if no device connects)
-            print(f"⏱️  Setting up pair timeout ({self.PAIR_TIMEOUT_MS}ms)...")
+            print(f"  Setting up pair timeout ({self.PAIR_TIMEOUT_MS}ms)...")
             self._pair_timeout = threading.Timer(
                 self.PAIR_TIMEOUT_MS / 1000.0,
                 lambda: self.dongle_driver.send(SendCommand('wifiPair'))
@@ -240,11 +240,11 @@ class CarplayNode:
             self._pair_timeout.daemon = True
             self._pair_timeout.start()
             
-            print("✅ CarPlay started successfully")
+            print(" CarPlay started successfully")
             return True
             
         except Exception as err:
-            print(f"❌ Failed to start CarPlay: {err}")
+            print(f" Failed to start CarPlay: {err}")
             import traceback
             traceback.print_exc()
             
@@ -258,13 +258,13 @@ class CarplayNode:
         Cleans up timers and closes dongle connection.
         """
         try:
-            print("🛑 Stopping CarPlay...")
+            print(" Stopping CarPlay...")
             self._clear_pair_timeout()
             self._clear_frame_interval()
             self.dongle_driver.close()
-            print("✅ CarPlay stopped")
+            print(" CarPlay stopped")
         except Exception as err:
-            print(f"❌ Error stopping CarPlay: {err}")
+            print(f" Error stopping CarPlay: {err}")
     
     def send_key(self, action: str):
         """Send key command to CarPlay

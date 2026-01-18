@@ -56,12 +56,12 @@ class AudioPlayer(QObject):
         self._available_samples = 0
         self._last_overflow_log = 0
         
-        print(f"🔊 AudioPlayer: Ring buffer, 20s capacity")
+        print(f" AudioPlayer: Ring buffer, 20s capacity")
         self._log_available_devices()
     
     def _log_available_devices(self):
         """Log available audio devices"""
-        print("🔊 Available audio devices:")
+        print(" Available audio devices:")
         devices = sd.query_devices()
         for i, dev in enumerate(devices):
             if dev['max_output_channels'] > 0:
@@ -95,7 +95,7 @@ class AudioPlayer(QObject):
         if status.output_underflow:
             self._underruns += 1
             if self._underruns % 10 == 0:
-                print(f'🔊 AudioPlayer: Buffer underrun #{self._underruns}')
+                print(f' AudioPlayer: Buffer underrun #{self._underruns}')
         
         with self._buffer_lock:
             available = self._get_available_samples()
@@ -105,7 +105,7 @@ class AudioPlayer(QObject):
                 if available >= self._min_buffer_samples:
                     self._buffering = False
                     self._underruns = 0
-                    print(f"🔊 Buffering complete ({available} samples = {available/self.sample_rate:.1f}s)")
+                    print(f" Buffering complete ({available} samples = {available/self.sample_rate:.1f}s)")
                 else:
                     # Still buffering - output silence
                     outdata.fill(0)
@@ -123,7 +123,7 @@ class AudioPlayer(QObject):
                 if not self._buffering:
                     self._underruns += 1
                     if self._underruns <= 5 or self._underruns % 10 == 0:
-                        print(f"⚠️ UNDERRUN #{self._underruns} - only {available}/{frames} samples")
+                        print(f" UNDERRUN #{self._underruns} - only {available}/{frames} samples")
     
     def _read_from_buffer(self, outdata, frames):
         """Read frames from ring buffer into output
@@ -166,7 +166,7 @@ class AudioPlayer(QObject):
             skip_samples = available - target_buffer
             self._read_pos = (self._read_pos + skip_samples) % self._buffer_size
             if self._frames_received - self._last_overflow_log > 100:
-                print(f"⚠️ Emergency resync ({available/self.sample_rate:.1f}s → {target_buffer/self.sample_rate:.1f}s)")
+                print(f" Emergency resync ({available/self.sample_rate:.1f}s  {target_buffer/self.sample_rate:.1f}s)")
                 self._last_overflow_log = self._frames_received
     
     # === Public API ===
@@ -203,7 +203,7 @@ class AudioPlayer(QObject):
             self._write_pos = 0
             self._read_pos = 0
         
-        print(f"🔊 Format changed to {sample_rate}Hz, {channels}ch")
+        print(f" Format changed to {sample_rate}Hz, {channels}ch")
         
         # Restart if it was playing
         if was_playing:
@@ -239,11 +239,11 @@ class AudioPlayer(QObject):
             self._is_playing = True
             
             self.audioStarted.emit()
-            print(f"🔊 Started ({self.sample_rate}Hz, {self.channels}ch, ring buffer)")
+            print(f" Started ({self.sample_rate}Hz, {self.channels}ch, ring buffer)")
             
         except Exception as e:
             error_msg = f"Failed to start audio: {e}"
-            print(f"❌ AudioPlayer: {error_msg}")
+            print(f" AudioPlayer: {error_msg}")
             self.audioError.emit(error_msg)
     
     def stop(self):
@@ -266,10 +266,10 @@ class AudioPlayer(QObject):
                 self._buffering = True
             
             self.audioStopped.emit()
-            print(f"🔊 Stopped (received {self._frames_received} frames, underruns: {self._underruns})")
+            print(f" Stopped (received {self._frames_received} frames, underruns: {self._underruns})")
             
         except Exception as e:
-            print(f"❌ Error stopping: {e}")
+            print(f" Error stopping: {e}")
     
     
     @Slot(object)
@@ -304,10 +304,10 @@ class AudioPlayer(QObject):
                 with self._buffer_lock:
                     available = self._get_available_samples()
                     buffer_seconds = available / self.sample_rate
-                    print(f"📊 Buffer: {available} samples ({buffer_seconds:.2f}s)")
+                    print(f" Buffer: {available} samples ({buffer_seconds:.2f}s)")
                     
         except Exception as e:
-            print(f"❌ Error playing audio: {e}")
+            print(f" Error playing audio: {e}")
             import traceback
             traceback.print_exc()
     
@@ -329,7 +329,7 @@ class AudioPlayer(QObject):
             overflow = len(audio_array) - free_space
             self._read_pos = (self._read_pos + overflow) % self._buffer_size
             if self._frames_received % 100 == 0:
-                print(f"⚠️ Buffer overflow, dropped {overflow} samples")
+                print(f" Buffer overflow, dropped {overflow} samples")
         
         # Write data (may wrap around)
         if self._write_pos + len(audio_array) <= self._buffer_size:
@@ -356,7 +356,7 @@ class AudioPlayer(QObject):
         Args:
             volume: Volume level 0.0-1.0 (unused)
         """
-        print(f"⚠️ Volume control not available with sounddevice")
+        print(f" Volume control not available with sounddevice")
     
     def __del__(self):
         """Cleanup on deletion"""

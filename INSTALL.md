@@ -1,27 +1,46 @@
 # Installation Guide
 
-## Install from GitHub
+## Prerequisites
 
+### 1. Install libusb
+
+**macOS:**
 ```bash
-pip install git+https://github.com/robertburda/pycarplay.git
+brew install libusb
 ```
 
-## Install from local repository
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install libusb-1.0-0-dev
+```
 
+**Linux (Fedora/RHEL):**
+```bash
+sudo dnf install libusb-devel
+```
+
+### 2. Install PyCarPlay
+
+**From GitHub:**
+```bash
+pip install git+https://github.com/robixxxxx/pycarplay.git
+```
+
+**From local repository:**
 ```bash
 cd /path/to/pycarplay
 pip install -e .
 ```
 
-## Verify installation
+## Verify Installation
 
 ```python
-python -c "from pycarplay import CarPlayWidget, CarPlayConfig; print('✅ PyCarPlay installed successfully')"
+python -c "from pycarplay import CarPlayWidget, CarPlayConfig; print('PyCarPlay installed successfully')"
 ```
 
-## Requirements
+## Python Dependencies
 
-All dependencies will be installed automatically:
+Installed automatically:
 - PySide6 >= 6.4.0
 - pyusb >= 1.2.1
 - opencv-python >= 4.8.0

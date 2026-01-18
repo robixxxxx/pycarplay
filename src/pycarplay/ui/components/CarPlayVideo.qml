@@ -117,7 +117,7 @@ Rectangle {
             spacing: 20
             
             Label {
-                text: "🔌"
+                text: ""
                 font.pixelSize: 64
                 color: "#444"
                 Layout.alignment: Qt.AlignHCenter
@@ -174,7 +174,7 @@ Rectangle {
                     spacing: 2
                     
                     Label {
-                        text: "🎵 " + (videoController ? videoController.currentSong : "")
+                        text: (videoController ? videoController.currentSong : "")
                         color: "#ffffff"
                         font.pixelSize: 14
                         font.bold: true
@@ -211,7 +211,7 @@ Rectangle {
                 
                 Label {
                     anchors.fill: parent
-                    text: "🗺️  " + (videoController ? videoController.navigationInfo : "")
+                    text: "  " + (videoController ? videoController.navigationInfo : "")
                     color: "#4CAF50"
                     font.pixelSize: 14
                     font.bold: true

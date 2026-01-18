@@ -98,7 +98,7 @@ Rectangle {
             width: 600
             
             Label {
-                text: "⚙️ CarPlay Configuration"
+                text: " CarPlay Configuration"
                 font.pixelSize: 32
                 font.bold: true
                 color: "#ffffff"
@@ -107,7 +107,7 @@ Rectangle {
             
             // Connection settings
             GroupBox {
-                title: "🔌 Połączenie"
+                title: " Połączenie"
                 Layout.fillWidth: true
                 
                 ColumnLayout {
@@ -162,7 +162,7 @@ Rectangle {
             
             // Video settings
             GroupBox {
-                title: "🖥️ Video Settings"
+                title: " Video Settings"
                 Layout.fillWidth: true
                 
                 ColumnLayout {
@@ -255,7 +255,7 @@ Rectangle {
             
             // CarPlay appearance settings
             GroupBox {
-                title: "🚗 CarPlay Appearance"
+                title: "CarPlay Appearance"
                 Layout.fillWidth: true
                 
                 ColumnLayout {
@@ -338,7 +338,7 @@ Rectangle {
             }
             
             Label {
-                text: "ℹ️ Settings will be auto-applied. Device will reload if phone is connected."
+                text: " Settings will be auto-applied. Device will reload if phone is connected."
                 color: "#888"
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap

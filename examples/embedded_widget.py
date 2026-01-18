@@ -80,11 +80,11 @@ class MainWindow(QMainWindow):
         nav_group = QGroupBox("Navigation")
         nav_layout = QVBoxLayout(nav_group)
         
-        home_btn = QPushButton("🏠 Home")
+        home_btn = QPushButton("Home")
         home_btn.clicked.connect(self.carplay.send_home)  # <-- Connect to slot
         nav_layout.addWidget(home_btn)
         
-        back_btn = QPushButton("⬅️ Back")
+        back_btn = QPushButton("Back")
         back_btn.clicked.connect(self.carplay.send_back)  # <-- Connect to slot
         nav_layout.addWidget(back_btn)
         
@@ -94,15 +94,15 @@ class MainWindow(QMainWindow):
         media_group = QGroupBox("Media")
         media_layout = QVBoxLayout(media_group)
         
-        play_btn = QPushButton("⏯️ Play/Pause")
+        play_btn = QPushButton("Play/Pause")
         play_btn.clicked.connect(self.carplay.send_play_pause)  # <-- Connect to slot
         media_layout.addWidget(play_btn)
         
-        prev_btn = QPushButton("⏮️ Previous")
+        prev_btn = QPushButton("Previous")
         prev_btn.clicked.connect(self.carplay.send_previous_track)  # <-- Connect to slot
         media_layout.addWidget(prev_btn)
         
-        next_btn = QPushButton("⏭️ Next")
+        next_btn = QPushButton("Next")
         next_btn.clicked.connect(self.carplay.send_next_track)  # <-- Connect to slot
         media_layout.addWidget(next_btn)
         
@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
         )
         vol_layout.addWidget(self.volume_label)
         
-        mute_btn = QPushButton("🔇 Toggle Mute")
+        mute_btn = QPushButton("Toggle Mute")
         mute_btn.clicked.connect(self.carplay.toggle_audio)  # <-- Connect to slot
         vol_layout.addWidget(mute_btn)
         
@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
         settings_group = QGroupBox("Settings")
         settings_layout = QVBoxLayout(settings_group)
         
-        show_settings_btn = QPushButton("⚙️ Show Settings")
+        show_settings_btn = QPushButton(" Show Settings")
         show_settings_btn.clicked.connect(self.carplay.show_settings)  # <-- Connect to slot
         settings_layout.addWidget(show_settings_btn)
         
@@ -183,24 +183,24 @@ class MainWindow(QMainWindow):
     
     def on_phone_connected(self):
         """Handle phone connected signal"""
-        print("📱 Phone connected!")
+        print("Phone connected!")
         self.setWindowTitle("CarPlay with Controls - Phone Connected")
     
     def on_phone_disconnected(self):
         """Handle phone disconnected signal"""
-        print("📱 Phone disconnected")
+        print("Phone disconnected")
         self.setWindowTitle("CarPlay with Controls - No Phone")
     
     def on_song_changed(self, song: str):
         """Handle song change signal"""
         if song:
-            self.song_label.setText(f"🎵 {song}")
+            self.song_label.setText(f"{song}")
         else:
             self.song_label.setText("No song playing")
     
     def on_connection_failed(self):
         """Handle connection failure signal"""
-        print("❌ Connection failed!")
+        print("Connection failed!")
 
 def main():
     app = QApplication(sys.argv)

@@ -230,10 +230,10 @@ class VideoStreamController(QObject):
         """Toggle audio playback on/off"""
         if self._audio_player._is_playing:
             self._audio_player.stop()
-            print("🔇 Audio muted")
+            print(" Audio muted")
         else:
             self._audio_player.start()
-            print("🔊 Audio unmuted")
+            print(" Audio unmuted")
     
     @Slot(float)
     def setVolume(self, volume: float):
@@ -243,13 +243,13 @@ class VideoStreamController(QObject):
     
     def _on_decoder_errors(self):
         """Handle too many decoder errors - force reconnection with delay"""
-        print("🔄 Decoder errors detected - disconnecting to reset phone...")
+        print("Decoder errors detected - disconnecting to reset phone...")
         
         # Disconnect
         self.disconnectDongle()
         
         # Wait longer before reconnecting - phone needs time to reset CarPlay connection
-        print("⏳ Waiting 15 seconds for phone to fully reset...")
+        print("Waiting 15 seconds for phone to fully reset...")
         QTimer.singleShot(15000, self.connectDongle)  # Reconnect after 15 seconds
     
     def _attempt_reconnect(self):
@@ -257,11 +257,11 @@ class VideoStreamController(QObject):
         self._reconnect_attempts += 1
         
         if self._reconnect_attempts > self._max_reconnect_attempts:
-            print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) reached. Please reconnect manually.")
+            print(f"Max reconnection attempts ({self._max_reconnect_attempts}) reached. Please reconnect manually.")
             self.dongleStatus = "Failed - Manual reconnection needed"
             return
         
-        print(f"🔄 Reconnection attempt #{self._reconnect_attempts}/{self._max_reconnect_attempts}...")
+        print(f"Reconnection attempt #{self._reconnect_attempts}/{self._max_reconnect_attempts}...")
         self.dongleStatus = f"Reconnecting... (attempt {self._reconnect_attempts})"
         
         # Disconnect first
@@ -272,7 +272,7 @@ class VideoStreamController(QObject):
     
     def _reload_device(self):
         """Reload device connection to apply new settings"""
-        print("🔄 Reloading device with new settings...")
+        print("Reloading device with new settings...")
         
         # Store current connection state
         was_connected = self._carplay_node is not None
@@ -284,7 +284,7 @@ class VideoStreamController(QObject):
             # Wait and reconnect with new settings
             QTimer.singleShot(2000, self.connectDongle)
         else:
-            print("⚠️  Device not connected - settings will apply on next connection")
+            print("  Device not connected - settings will apply on next connection")
     
     def _on_carplay_message(self, msg: CarplayMessage):
         """Handle messages from CarPlay node"""
@@ -304,19 +304,19 @@ class VideoStreamController(QObject):
         elif msg.msg_type == MessageType.MEDIA:
             self._handle_media(msg.message)
         elif msg.msg_type == MessageType.BLUETOOTH_ADDRESS:
-            print(f"📱 Bluetooth Address: {msg.message}")
+            print(f"Bluetooth Address: {msg.message}")
         elif msg.msg_type == MessageType.BLUETOOTH_DEVICE_NAME:
-            print(f"📱 Bluetooth Device Name: {msg.message}")
+            print(f"Bluetooth Device Name: {msg.message}")
         elif msg.msg_type == MessageType.WIFI_DEVICE_NAME:
-            print(f"📶 WiFi Device Name: {msg.message}")
+            print(f"WiFi Device Name: {msg.message}")
         elif msg.msg_type == MessageType.PHASE:
             if hasattr(msg.message, 'phase'):
-                print(f"🔄 Connection Phase: {msg.message.phase}")
+                print(f"Connection Phase: {msg.message.phase}")
     
     def _handle_plugged(self, message: Plugged):
         """Handle phone plugged event"""
         phone_type = message.phone_type.name
-        print(f"📱 Phone plugged: {phone_type}")
+        print(f"Phone plugged: {phone_type}")
         self._phone_connected = True
         self._reconnect_attempts = 0  # Reset reconnect counter
         self.dongleStatus = f"Connected - {phone_type}"
@@ -328,18 +328,18 @@ class VideoStreamController(QObject):
         
         # If settings were changed while disconnected, reload device
         if self._pending_settings_reload:
-            print("🔄 Settings changed - reloading device...")
+            print("Settings changed - reloading device...")
             self._pending_settings_reload = False
             QTimer.singleShot(1000, self._reload_device)
     
     def _handle_unplugged(self):
         """Handle phone unplugged event"""
-        print("📱 Phone unplugged")
+        print("Phone unplugged")
         self._phone_connected = False
         self.dongleStatus = "Connected - No phone"
         
         # Start reconnection attempts
-        print("🔄 Phone disconnected - will monitor for reconnection")
+        print("Phone disconnected - will monitor for reconnection")
         self._reconnect_attempts = 0
     
     def _handle_video(self, message: VideoData):
@@ -358,7 +358,7 @@ class VideoStreamController(QObject):
         elif message.command:
             self._handle_audio_command(message)
         elif message.volume_duration:
-            print(f"🔊 Volume duration: {message.volume_duration}")
+            print(f" Volume duration: {message.volume_duration}")
     
     def _handle_audio_data(self, message: AudioData):
         """Handle audio PCM data"""
@@ -375,10 +375,10 @@ class VideoStreamController(QObject):
             
             # Log periodically
             if self._audio_player._frames_received <= 5 or self._audio_player._frames_received % 500 == 0:
-                print(f"🔊 Audio frame #{self._audio_player._frames_received}: "
+                print(f" Audio frame #{self._audio_player._frames_received}: "
                       f"{len(message.data)} samples, {audio_format.frequency}Hz")
         except Exception as e:
-            print(f"❌ Audio error: {e}")
+            print(f" Audio error: {e}")
             import traceback
             traceback.print_exc()
     
@@ -386,11 +386,11 @@ class VideoStreamController(QObject):
         """Handle audio commands (Siri, config)"""
         from src.protocol.messages import AudioCommand
         command_name = message.command.name if hasattr(message.command, 'name') else str(message.command)
-        print(f"🔊 Audio command: {command_name}")
+        print(f" Audio command: {command_name}")
         
         # Show config panel on AudioInputConfig
         if message.command == AudioCommand.AudioInputConfig:
-            print("⚙️  AudioInputConfig - showing config panel")
+            print("  AudioInputConfig - showing config panel")
             self.showConfigPanel.emit()
         # Toggle Siri mode (mono audio)
         elif message.command == AudioCommand.AudioSiriStart:
@@ -400,7 +400,7 @@ class VideoStreamController(QObject):
     
     def _handle_failure(self):
         """Handle communication failure - emit signal for thread-safe handling"""
-        print("❌ CarPlay communication failed")
+        print(" CarPlay communication failed")
         self.dongleStatus = "Failed"
         self.dongleDisconnected.emit()
         
@@ -411,10 +411,10 @@ class VideoStreamController(QObject):
         """Handle connection failure in main Qt thread (called via signal)"""
         if self._reconnect_attempts < self._max_reconnect_attempts:
             delay = min(5000 * (2 ** self._reconnect_attempts), 30000)  # Exponential backoff, max 30s
-            print(f"🔄 Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
+            print(f" Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
             self._reconnect_timer.start(delay)
         else:
-            print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) reached")
+            print(f" Max reconnection attempts ({self._max_reconnect_attempts}) reached")
     
     def _handle_command(self, message):
         """Handle system commands"""
@@ -422,13 +422,13 @@ class VideoStreamController(QObject):
         
         # Only log commands we actually handle
         if command_value == 3:
-            print("⚙️  AudioInputConfig - showing config panel")
+            print("  AudioInputConfig - showing config panel")
             self.showConfigPanel.emit()
         elif command_value == 1:
-            print("⚙️  Showing CarPlay config panel")
+            print("  Showing CarPlay config panel")
             self.showConfigPanel.emit()
         elif command_value == 2:
-            print("⚙️  Hiding CarPlay config panel")
+            print("  Hiding CarPlay config panel")
             self.hideConfigPanel.emit()
     
     def _handle_media(self, message):
@@ -439,7 +439,7 @@ class VideoStreamController(QObject):
         media_type = message.payload.get('type')
         
         if media_type == 3:  # Album Cover
-            print(f"🎨 Album Cover received")
+            print(f" Album Cover received")
         elif media_type == 1:  # Media Data
             media = message.payload.get('media', {})
             self._handle_music_metadata(media)
@@ -453,7 +453,7 @@ class VideoStreamController(QObject):
             song = media.get('MediaSongTitle', 'Unknown')
             artist = media.get('MediaArtist', 'Unknown')
             album = media.get('MediaAlbum', 'Unknown')
-            print(f"🎵 Now Playing: {song} - {artist} (Album: {album})")
+            print(f" Now Playing: {song} - {artist} (Album: {album})")
             
             self.currentSong = song
             self.currentArtist = f"{artist} • {album}"
@@ -467,7 +467,7 @@ class VideoStreamController(QObject):
             play_time_sec = media.get('MediaSongPlayTime', 0) / 1000
             duration_sec = media.get('MediaSongDuration', 0) / 1000
             if int(play_time_sec) % 10 == 0:
-                print(f"⏱️  Playback: {play_time_sec:.1f}s / {duration_sec:.1f}s")
+                print(f"  Playback: {play_time_sec:.1f}s / {duration_sec:.1f}s")
     
     def _handle_navigation_metadata(self, media: dict):
         """Handle navigation metadata"""
@@ -493,15 +493,15 @@ class VideoStreamController(QObject):
         
         # Log details
         if current_road:
-            print(f"🗺️  Current: {current_road}")
+            print(f"  Current: {current_road}")
         if next_road:
-            print(f"🗺️  Next: {next_road}")
+            print(f"  Next: {next_road}")
         if distance:
-            print(f"🗺️  Distance: {distance} {distance_unit}")
+            print(f"  Distance: {distance} {distance_unit}")
         if maneuver:
-            print(f"🗺️  Maneuver: {maneuver}")
+            print(f"  Maneuver: {maneuver}")
         if eta:
-            print(f"🗺️  ETA: {eta}")
+            print(f"  ETA: {eta}")
         
         self._media_logger.log_navigation(current_road, next_road, distance, distance_unit, maneuver, eta)
     
@@ -510,7 +510,7 @@ class VideoStreamController(QObject):
         if 'PhoneCallStatus' in media:
             call_status = media.get('PhoneCallStatus', '')
             caller = media.get('PhoneCaller', 'Unknown')
-            print(f"📞 Call: {call_status} - {caller}")
+            print(f" Call: {call_status} - {caller}")
             self._media_logger.log_phone_call(call_status, caller)
     
     def _on_microphone_data(self, audio_data):
@@ -529,13 +529,13 @@ class VideoStreamController(QObject):
                 self._mic_data_count = 0
             self._mic_data_count += 1
             if self._mic_data_count <= 5 or self._mic_data_count % 100 == 0:
-                print(f"🎤 Microphone data sent #{self._mic_data_count}: {len(audio_bytes)} bytes")
+                print(f" Microphone data sent #{self._mic_data_count}: {len(audio_bytes)} bytes")
         except Exception as e:
-            print(f"❌ Microphone error: {e}")
+            print(f" Microphone error: {e}")
     
     def _on_microphone_command(self, action: str, command):
         """Handle microphone start/stop commands from CarPlay"""
-        print(f"🎤 Command: {action} ({command.name})")
+        print(f" Command: {action} ({command.name})")
         if action == 'start':
             self.startMicrophone()
         elif action == 'stop':
@@ -553,9 +553,9 @@ class VideoStreamController(QObject):
             try:
                 with open(config_file, 'r') as f:
                     self._video_config = json.load(f)
-                print(f"⚙️  Loaded video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
+                print(f"  Loaded video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
             except Exception as e:
-                print(f"⚠️  Failed to load video config: {e}")
+                print(f"  Failed to load video config: {e}")
     
     def _save_video_config(self):
         """Save video configuration to file"""
@@ -566,21 +566,21 @@ class VideoStreamController(QObject):
         try:
             with open(config_file, 'w') as f:
                 json.dump(self._video_config, f, indent=2)
-            print(f"💾 Saved video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
+            print(f" Saved video config: {self._video_config['width']}x{self._video_config['height']} @ {self._video_config['dpi']} DPI")
         except Exception as e:
-            print(f"⚠️  Failed to save video config: {e}")
+            print(f"  Failed to save video config: {e}")
     
     @Slot()
     def startMicrophone(self):
         """Start microphone recording (for Siri/calls)"""
         self._microphone.start()
-        print("🎤 Microphone started")
+        print(" Microphone started")
     
     @Slot()
     def stopMicrophone(self):
         """Stop microphone recording"""
         self._microphone.stop()
-        print("🎤 Microphone stopped")
+        print(" Microphone stopped")
     
     # === Public API ===
     
@@ -610,7 +610,7 @@ class VideoStreamController(QObject):
         self._video_config['height'] = height
         self._video_config['dpi'] = dpi
         self.videoConfigChanged.emit(width, height, dpi)
-        print(f"⚙️  Applied video config: {width}x{height} @ {dpi} DPI")
+        print(f"  Applied video config: {width}x{height} @ {dpi} DPI")
     
     @Slot(int, int, int)
     def setVideoSettings(self, width: int, height: int, dpi: int):
@@ -635,18 +635,18 @@ class VideoStreamController(QObject):
         if self._carplay_node:
             # Update dongle settings
             self._carplay_node.dongle_driver.update_video_settings(width, height, dpi)
-            print(f"⚙️  Video settings updated: {width}x{height} @ {dpi} DPI")
+            print(f"  Video settings updated: {width}x{height} @ {dpi} DPI")
             
             # Auto-reload device to apply settings
             if self._phone_connected:
-                print(f"🔄 Phone connected - reloading device to apply settings...")
+                print(f" Phone connected - reloading device to apply settings...")
                 QTimer.singleShot(500, self._reload_device)
             else:
-                print(f"⚠️  No phone connected - settings will apply on next connection")
+                print(f"  No phone connected - settings will apply on next connection")
                 self._pending_settings_reload = True
         else:
-            print(f"⚙️  Video settings saved: {width}x{height} @ {dpi} DPI")
-            print(f"⚠️  Connect dongle first to send settings")
+            print(f"  Video settings saved: {width}x{height} @ {dpi} DPI")
+            print(f"  Connect dongle first to send settings")
     
     @Slot(str)
     def setCarPlayLabel(self, label: str):
@@ -654,7 +654,7 @@ class VideoStreamController(QObject):
         if self._carplay_node:
             from src.protocol.sendable import SendIconConfig
             self._carplay_node.dongle_driver.send(SendIconConfig({'label': label}))
-            print(f"⚙️  CarPlay label set to: {label}")
+            print(f"  CarPlay label set to: {label}")
     
     @Slot(str)
     def setCarPlayIcon(self, icon_path: str):
@@ -666,7 +666,7 @@ class VideoStreamController(QObject):
         - logo_256_256.png for 256x256
         """
         if not self._carplay_node:
-            print("❌ CarPlay not connected")
+            print(" CarPlay not connected")
             return
         
         try:
@@ -688,7 +688,7 @@ class VideoStreamController(QObject):
                 if os.path.exists(path):
                     with open(path, 'rb') as f:
                         data = f.read()
-                    print(f"📦 Loaded {os.path.basename(path)}: {len(data)} bytes")
+                    print(f" Loaded {os.path.basename(path)}: {len(data)} bytes")
                     return data
                 return fallback_data
             
@@ -697,7 +697,7 @@ class VideoStreamController(QObject):
             icon_data_256 = read_icon(icon_256, icon_data_120)
             
             # Send all icon sizes to dongle
-            print("📤 Uploading icons to dongle...")
+            print(" Uploading icons to dongle...")
             self._carplay_node.dongle_driver.send(SendFile(icon_data_256, FileAddress.OEM_ICON))
             self._carplay_node.dongle_driver.send(SendFile(icon_data_120, FileAddress.ICON_120))
             self._carplay_node.dongle_driver.send(SendFile(icon_data_180, FileAddress.ICON_180))
@@ -712,11 +712,11 @@ class VideoStreamController(QObject):
             # Request UI refresh
             self._carplay_node.dongle_driver.send(SendCommand('requestHostUI'))
             
-            print("✅ CarPlay icon and label updated")
-            print("ℹ️  Note: May require iPhone reconnection to see changes")
+            print(" CarPlay icon and label updated")
+            print("  Note: May require iPhone reconnection to see changes")
             
         except Exception as e:
-            print(f"❌ Error setting icon: {e}")
+            print(f" Error setting icon: {e}")
             import traceback
             traceback.print_exc()
     
@@ -729,7 +729,7 @@ class VideoStreamController(QObject):
         """
         if self._carplay_node:
             self._carplay_node.send_key(action)
-            print(f"⌨️  Key: {action}")
+            print(f"  Key: {action}")
     
     @Slot(float, float, int)
     def sendTouch(self, x: float, y: float, action: int):
@@ -757,7 +757,7 @@ class VideoStreamController(QObject):
         action_name = action_names.get(action, f"UNKNOWN({action})")
         
         self._carplay_node.send_touch(norm_x, norm_y, TouchAction(action))
-        print(f"🖱️  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
+        print(f"  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
 
 
 def main():
@@ -797,7 +797,7 @@ def main():
         print("Warning: videoContainer not found!")
     
     # Auto-connect to dongle on startup
-    print("🚀 Auto-connecting to dongle...")
+    print(" Auto-connecting to dongle...")
     QTimer.singleShot(500, video_controller.connectDongle)
     
     sys.exit(app.exec())

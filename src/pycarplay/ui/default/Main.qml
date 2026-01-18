@@ -78,8 +78,8 @@ ApplicationWindow {
             spacing: 10
             
             Label {
-                text: "✅"
-                font.pixelSize: 24
+                text: "[OK]"
+                font.pixelSize: 18
                 color: "#ffffff"
             }
             
@@ -139,7 +139,7 @@ ApplicationWindow {
             spacing: 10
             
             Label {
-                text: "⌨️ Keyboard Shortcuts"
+                text: " Keyboard Shortcuts"
                 font.pixelSize: 18
                 font.bold: true
                 color: "#ffffff"
@@ -167,7 +167,7 @@ ApplicationWindow {
                 Label { text: "SPACE"; color: "#0078d4"; font.bold: true }
                 Label { text: "Play/Pause"; color: "#aaa" }
                 
-                Label { text: "←/→/↑/↓"; color: "#0078d4"; font.bold: true }
+                Label { text: "///"; color: "#0078d4"; font.bold: true }
                 Label { text: "Navigate"; color: "#aaa" }
             }
             
@@ -178,7 +178,7 @@ ApplicationWindow {
             }
             
             Label {
-                text: "🖱️ Mouse/Touch"
+                text: " Mouse/Touch"
                 font.pixelSize: 16
                 font.bold: true
                 color: "#ffffff"

@@ -36,12 +36,12 @@ class MicrophoneInput(QObject):
         self._frames_captured = 0
         
         # === Initialization ===
-        print(f"🎤 Microphone: {self.sample_rate}Hz, {self.channels}ch")
+        print(f" Microphone: {self.sample_rate}Hz, {self.channels}ch")
         self._log_available_devices()
     
     def _log_available_devices(self):
         """Log available input devices for debugging"""
-        print("🎤 Available input devices:")
+        print(" Available input devices:")
         devices = sd.query_devices()
         for i, dev in enumerate(devices):
             if dev['max_input_channels'] > 0:
@@ -54,7 +54,7 @@ class MicrophoneInput(QObject):
         Converts float32 audio to int16 PCM and emits via signal.
         """
         if status:
-            print(f'⚠️  Microphone status: {status}')
+            print(f'  Microphone status: {status}')
         
         try:
             # Convert float32 (-1.0 to 1.0) to int16 PCM
@@ -69,10 +69,10 @@ class MicrophoneInput(QObject):
             # Statistics
             self._frames_captured += 1
             if self._frames_captured % 100 == 0:
-                print(f"🎤 Captured {self._frames_captured} frames")
+                print(f" Captured {self._frames_captured} frames")
                 
         except Exception as e:
-            print(f"❌ Microphone callback error: {e}")
+            print(f" Microphone callback error: {e}")
             self.micError.emit(str(e))
     
     # === Public API ===
@@ -84,10 +84,10 @@ class MicrophoneInput(QObject):
         Audio is emitted via micDataReady signal.
         """
         if self._is_recording:
-            print("⚠️  Microphone already recording")
+            print("  Microphone already recording")
             return
         
-        print("🎤 Starting microphone...")
+        print(" Starting microphone...")
         
         try:
             # Create and start input stream
@@ -104,11 +104,11 @@ class MicrophoneInput(QObject):
             self._frames_captured = 0
             
             self.micStarted.emit()
-            print(f"✅ Microphone recording: {self.sample_rate}Hz, {self.channels}ch")
+            print(f" Microphone recording: {self.sample_rate}Hz, {self.channels}ch")
             
         except Exception as e:
             error_msg = f"Failed to start microphone: {e}"
-            print(f"❌ {error_msg}")
+            print(f" {error_msg}")
             self.micError.emit(error_msg)
     
     def stop(self):
@@ -128,10 +128,10 @@ class MicrophoneInput(QObject):
                 self._stream = None
             
             self.micStopped.emit()
-            print(f"🎤 Stopped (captured {self._frames_captured} frames)")
+            print(f" Stopped (captured {self._frames_captured} frames)")
             
         except Exception as e:
-            print(f"❌ Error stopping microphone: {e}")
+            print(f" Error stopping microphone: {e}")
             print(f"MicrophoneInput: Error stopping: {e}")
     
     def __del__(self):

@@ -42,7 +42,7 @@ class HardwareButtonSimulator:
     
     def start_demo(self):
         """Start simulating button presses"""
-        print("\n🎮 Starting hardware button simulation...")
+        print("\nStarting hardware button simulation...")
         print("In real use, this would be triggered by physical buttons\n")
         self.demo_timer.start(3000)  # Every 3 seconds
     
@@ -60,7 +60,7 @@ class HardwareButtonSimulator:
         ]
         
         button_name, button_handler = buttons[self.demo_counter % len(buttons)]
-        print(f"🔘 Physical button pressed: {button_name}")
+        print(f"[BUTTON] Physical button pressed: {button_name}")
         button_handler()
         
         self.demo_counter += 1
@@ -73,17 +73,17 @@ class HardwareButtonSimulator:
         # Check connection before sending command
         if self.carplay.is_phone_connected():
             self.carplay.send_home()
-            print(f"   ✓ Sent HOME command (Status: {self.carplay.get_status()})")
+            print(f"   [OK] Sent HOME command (Status: {self.carplay.get_status()})")
         else:
-            print(f"   ✗ Phone not connected (Status: {self.carplay.get_status()})")
+            print(f"   [ERROR] Phone not connected (Status: {self.carplay.get_status()})")
     
     def on_back_button(self):
         """Physical BACK button pressed"""
         if self.carplay.is_phone_connected():
             self.carplay.send_back()
-            print(f"   ✓ Sent BACK command")
+            print(f"   [OK] Sent BACK command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_up_button(self):
         """Physical UP button pressed"""
@@ -91,18 +91,18 @@ class HardwareButtonSimulator:
             # Use controller for more advanced control
             controller = self.carplay.get_controller()
             controller.sendKey("up")
-            print(f"   ✓ Sent UP command")
+            print(f"   [OK] Sent UP command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_down_button(self):
         """Physical DOWN button pressed"""
         if self.carplay.is_phone_connected():
             controller = self.carplay.get_controller()
             controller.sendKey("down")
-            print(f"   ✓ Sent DOWN command")
+            print(f"   [OK] Sent DOWN command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_left_button(self):
         """Physical LEFT button pressed (or Previous Track)"""
@@ -111,11 +111,11 @@ class HardwareButtonSimulator:
             song = self.carplay.get_current_song()
             artist = self.carplay.get_current_artist()
             if song:
-                print(f"   ✓ Previous Track: {song} - {artist}")
+                print(f"   [OK] Previous Track: {song} - {artist}")
             else:
-                print(f"   ✓ Sent Previous Track command")
+                print(f"   [OK] Sent Previous Track command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_right_button(self):
         """Physical RIGHT button pressed (or Next Track)"""
@@ -124,20 +124,20 @@ class HardwareButtonSimulator:
             song = self.carplay.get_current_song()
             artist = self.carplay.get_current_artist()
             if song:
-                print(f"   ✓ Next Track: {song} - {artist}")
+                print(f"   [OK] Next Track: {song} - {artist}")
             else:
-                print(f"   ✓ Sent Next Track command")
+                print(f"   [OK] Sent Next Track command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_ok_button(self):
         """Physical OK/ENTER button pressed"""
         if self.carplay.is_phone_connected():
             controller = self.carplay.get_controller()
             controller.sendKey("select")
-            print(f"   ✓ Sent OK/SELECT command")
+            print(f"   [OK] Sent OK/SELECT command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_play_pause_button(self):
         """Physical PLAY/PAUSE button pressed"""
@@ -145,11 +145,11 @@ class HardwareButtonSimulator:
             self.carplay.send_play_pause()
             song = self.carplay.get_current_song()
             if song:
-                print(f"   ✓ Play/Pause: {song}")
+                print(f"   [OK] Play/Pause: {song}")
             else:
-                print(f"   ✓ Sent Play/Pause command")
+                print(f"   [OK] Sent Play/Pause command")
         else:
-            print(f"   ✗ Phone not connected")
+            print(f"   [ERROR] Phone not connected")
     
     def on_volume_up_button(self):
         """Physical VOLUME UP button pressed"""
@@ -179,7 +179,7 @@ class CarSystemApp(QMainWindow):
         
         # Info label
         info = QLabel(
-            "🚗 Car Infotainment System\n\n"
+            "Car Infotainment System\n\n"
             "This demo simulates physical hardware buttons.\n"
             "In real use, buttons would trigger CarPlay actions.\n\n"
             "Watch console for button press simulation..."
@@ -223,27 +223,27 @@ class CarSystemApp(QMainWindow):
                 song = self.carplay.get_current_song()
                 artist = self.carplay.get_current_artist()
                 if song:
-                    print(f"📊 Status: {status} | Now Playing: {song} - {artist}")
+                    print(f"[STATUS] {status} | Now Playing: {song} - {artist}")
                 else:
-                    print(f"📊 Status: {status} | Ready")
+                    print(f"[STATUS] {status} | Ready")
             else:
-                print(f"📊 Status: {status} | Waiting for phone...")
+                print(f"[STATUS] {status} | Waiting for phone...")
         else:
-            print(f"📊 Status: Dongle not connected")
+            print(f"[STATUS] Dongle not connected")
     
     def on_phone_connected(self):
         """Phone connected to CarPlay"""
-        print("📱 ✓ Phone connected to CarPlay!")
+        print("[PHONE] Phone connected to CarPlay!")
     
     def on_phone_disconnected(self):
         """Phone disconnected"""
-        print("📱 ✗ Phone disconnected")
+        print("[PHONE] Phone disconnected")
     
     def on_song_changed(self, song: str):
         """Song changed"""
         if song:
             artist = self.carplay.get_current_artist()
-            print(f"🎵 Now playing: {song} - {artist}")
+            print(f"[MEDIA] Now playing: {song} - {artist}")
 
 
 # === Example: Raspberry Pi GPIO Integration ===

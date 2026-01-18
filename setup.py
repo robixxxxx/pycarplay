@@ -1,5 +1,8 @@
 """
 PyCarPlay - CarPlay Integration Module for PyQt Applications
+
+Based on react-carplay (https://github.com/rhysmorgan134/react-carplay) by Rhys Morgan.
+Adapted for Python/Qt with enhanced flexibility and protocol-agnostic design.
 """
 from setuptools import setup, find_packages
 import os
@@ -19,7 +22,7 @@ setup(
     description='CarPlay integration module for PyQt6 applications with customizable UI',
     long_description=read_file('README.md'),
     long_description_content_type='text/markdown',
-    url='https://github.com/robertburda/pycarplay',
+    url='https://github.com/robixxxxx/pycarplay',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     package_data={
@@ -60,7 +63,7 @@ setup(
     ],
     keywords='carplay, pyqt6, automotive, qt, multimedia, video',
     project_urls={
-        'Bug Reports': 'https://github.com/robertburda/pycarplay/issues',
-        'Source': 'https://github.com/robertburda/pycarplay',
+        'Bug Reports': 'https://github.com/robixxxxx/pycarplay/issues',
+        'Source': 'https://github.com/robixxxxx/pycarplay',
     },
 )

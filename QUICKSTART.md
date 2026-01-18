@@ -2,15 +2,29 @@
 
 ## What is PyCarPlay?
 
-PyCarPlay is a **widget component** (not a standalone app) for embedding CarPlay functionality in your PyQt6 applications. You add it to your window like any other Qt widget.
+PyCarPlay is a widget component for embedding CarPlay in PyQt6 applications. Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay), adapted for Python/Qt.
 
-## 1. Installation (30 seconds)
+## 1. Installation
 
+### Install libusb
+
+**macOS:**
 ```bash
-pip install git+https://github.com/robertburda/pycarplay.git
+brew install libusb
 ```
 
-## 2. Basic Embedding (2 minutes)
+**Linux:**
+```bash
+sudo apt-get install libusb-1.0-0-dev
+```
+
+### Install PyCarPlay
+
+```bash
+pip install git+https://github.com/robixxxxx/pycarplay.git
+```
+
+## 2. Basic Embedding
 
 Create `my_app.py`:
 
@@ -45,7 +59,7 @@ Run it:
 python my_app.py
 ```
 
-✅ **That's it!** The widget will auto-connect to your CarPlay dongle.
+Done! The widget will auto-connect to your CarPlay dongle.
 
 ## 3. Add Control Buttons (5 minutes)
 
@@ -207,7 +221,3 @@ See `examples/embedded_widget.py` for a complete working example with:
 - Run `examples/embedded_widget.py` to see all features
 - Read full `README.md` for all signals and slots
 - Customize configuration with `CarPlayConfig`
-
----
-
-**Total time: < 10 minutes to full integration!** 🚀

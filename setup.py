@@ -16,7 +16,7 @@ def read_file(filename):
     return ''
 
 setup(
-    name='pycarplay-qt',
+    name='pycarplay',
     version='0.1.0',
     author='Robert Burda',
     description='CarPlay integration module for PyQt6 applications with customizable UI',

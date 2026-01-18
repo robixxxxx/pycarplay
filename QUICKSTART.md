@@ -6,7 +6,7 @@ PyCarPlay is a widget component for embedding CarPlay in PyQt6 applications. Bas
 
 ## 1. Installation
 
-### Install libusb
+### Install System Dependencies
 
 **macOS:**
 ```bash

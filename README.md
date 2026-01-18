@@ -26,17 +26,17 @@ Based on [react-carplay](https://github.com/rhysmorgan134/react-carplay) by Rhys
 
 ### Prerequisites
 
-Install libusb:
+Install system dependencies:
 
 **macOS:**
 ```bash
-brew install libusb
+brew install libusb portaudio
 ```
 
 **Linux:**
 ```bash
-sudo apt-get install libusb-1.0-0-dev  # Ubuntu/Debian
-sudo dnf install libusb-devel          # Fedora/RHEL
+sudo apt-get install libusb-1.0-0-dev portaudio19-dev  # Ubuntu/Debian
+sudo dnf install libusb-devel portaudio-devel          # Fedora/RHEL
 ```
 
 ### Install PyCarPlay
@@ -237,13 +237,14 @@ carplay = CarPlayWidget(config=config)
 ### System
 - Python >= 3.9
 - libusb (install via `brew install libusb` or `apt-get install libusb-1.0-0-dev`)
+- portaudio (install via `brew install portaudio` or `apt-get install portaudio19-dev`)
 
 ### Python Packages
 - PySide6 >= 6.4.0
 - pyusb >= 1.2.1
 - opencv-python >= 4.8.0
 - numpy >= 1.24.0
-- pyaudio >= 0.2.13
+- sounddevice
 
 ### Hardware
 - Compatible CarPlay USB dongle

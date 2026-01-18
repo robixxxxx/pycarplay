@@ -37,7 +37,7 @@ setup(
         'pyusb>=1.2.1',
         'opencv-python>=4.8.0',
         'numpy>=1.24.0',
-        'pyaudio>=0.2.13',
+        'sounddevice>=0.4.6',
         'cryptography>=41.0.0',
     ],
     extras_require={

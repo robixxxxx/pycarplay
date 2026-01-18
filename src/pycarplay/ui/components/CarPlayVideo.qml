@@ -109,7 +109,7 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         color: "#1e1e1e"
-        visible: videoController && !videoController.dongleStatus.startsWith("Connected")
+        visible: !!videoController && typeof videoController.dongleStatus === "string" && !videoController.dongleStatus.startsWith("Connected")
         
         ColumnLayout {
             anchors.centerIn: parent
@@ -123,7 +123,7 @@ Rectangle {
             }
             
             Label {
-                text: videoController ? 
+                text: videoController && typeof videoController.dongleStatus === "string" ? 
                       (videoController.dongleStatus.startsWith("Connecting") || 
                        videoController.dongleStatus.startsWith("Reconnecting") ?
                        "Łączenie z dongle..." : 
@@ -138,7 +138,7 @@ Rectangle {
             }
             
             Label {
-                text: videoController ? videoController.dongleStatus : ""
+                text: videoController && typeof videoController.dongleStatus === "string" ? videoController.dongleStatus : ""
                 font.pixelSize: 12
                 color: "#888"
                 Layout.alignment: Qt.AlignHCenter
@@ -153,9 +153,10 @@ Rectangle {
         anchors.bottom: parent.bottom
         height: 60
         color: "#aa2d2d2d"  // Semi-transparent
-        visible: videoController && 
-                 (showMediaInfo && videoController.currentSong !== "" || 
-                  showNavigationInfo && videoController.navigationInfo !== "")
+        visible: !!videoController && (
+            (showMediaInfo && typeof videoController.currentSong === "string" && videoController.currentSong !== "") ||
+            (showNavigationInfo && typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== "")
+        )
 
         RowLayout {
             anchors.fill: parent
@@ -166,14 +167,14 @@ Rectangle {
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                visible: showMediaInfo && videoController && videoController.currentSong !== ""
+                visible: showMediaInfo && !!videoController && typeof videoController.currentSong === "string" && videoController.currentSong !== ""
                 
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 2
                     
                     Label {
-                        text: (videoController ? videoController.currentSong : "")
+                        text: (videoController && typeof videoController.currentSong === "string" ? videoController.currentSong : "")
                         color: "#ffffff"
                         font.pixelSize: 14
                         font.bold: true
@@ -182,7 +183,7 @@ Rectangle {
                     }
                     
                     Label {
-                        text: videoController ? videoController.currentArtist : ""
+                        text: (videoController && typeof videoController.currentArtist === "string" ? videoController.currentArtist : "")
                         color: "#aaa"
                         font.pixelSize: 12
                         elide: Text.ElideRight
@@ -197,20 +198,20 @@ Rectangle {
                 Layout.preferredHeight: 40
                 color: "#444"
                 visible: showMediaInfo && showNavigationInfo &&
-                         videoController && 
-                         videoController.currentSong !== "" && 
-                         videoController.navigationInfo !== ""
+                         !!videoController &&
+                         typeof videoController.currentSong === "string" && videoController.currentSong !== "" &&
+                         typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== ""
             }
             
             // Navigation Info
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                visible: showNavigationInfo && videoController && videoController.navigationInfo !== ""
+                visible: showNavigationInfo && !!videoController && typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== ""
                 
                 Label {
                     anchors.fill: parent
-                    text: "  " + (videoController ? videoController.navigationInfo : "")
+                    text: "  " + (videoController && typeof videoController.navigationInfo === "string" ? videoController.navigationInfo : "")
                     color: "#4CAF50"
                     font.pixelSize: 14
                     font.bold: true

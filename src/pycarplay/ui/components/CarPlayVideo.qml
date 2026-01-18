@@ -14,17 +14,16 @@ Rectangle {
     property bool showTouchIndicator: true
     property bool showMediaInfo: true
     property bool showNavigationInfo: true
+    property string fillMode: "fit"  // "fit" or "stretch"
     
     // Video Display
     VideoOutput {
         id: videoDisplay
         anchors.fill: parent
         
-        property string fillMode: "fit"  // "fit" or "stretch"
-        
-        fillMode: videoDisplay.fillMode === "fit" ? 
-                  VideoOutput.PreserveAspectFit : 
-                  VideoOutput.Stretch
+    fillMode: videoContainer.fillMode === "fit" ? 
+          VideoOutput.PreserveAspectFit : 
+          VideoOutput.Stretch
         
         // Touch/Mouse handling
         MouseArea {

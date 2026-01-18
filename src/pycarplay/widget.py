@@ -11,7 +11,7 @@ from typing import Optional
 from PySide6.QtCore import QUrl, QTimer, Signal, Slot
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
-from PySide6.QtQuick import QQuickWidget
+from PySide6.QtQuickWidgets import QQuickWidget
 
 from .config import CarPlayConfig, DEFAULT_CONFIG
 from .video.video_provider import VideoFrameProvider

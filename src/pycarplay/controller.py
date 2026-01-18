@@ -384,7 +384,7 @@ class VideoStreamController(QObject):
     
     def _handle_audio_command(self, message: AudioData):
         """Handle audio commands (Siri, config)"""
-        from src.protocol.messages import AudioCommand
+        from .protocol.messages import AudioCommand
         command_name = message.command.name if hasattr(message.command, 'name') else str(message.command)
         print(f" Audio command: {command_name}")
         
@@ -652,7 +652,7 @@ class VideoStreamController(QObject):
     def setCarPlayLabel(self, label: str):
         """Set CarPlay icon label"""
         if self._carplay_node:
-            from src.protocol.sendable import SendIconConfig
+            from .protocol.sendable import SendIconConfig
             self._carplay_node.dongle_driver.send(SendIconConfig({'label': label}))
             print(f"  CarPlay label set to: {label}")
     
@@ -670,7 +670,7 @@ class VideoStreamController(QObject):
             return
         
         try:
-            from src.protocol.sendable import SendFile, FileAddress, SendIconConfig, SendCommand
+            from .protocol.sendable import SendFile, FileAddress, SendIconConfig, SendCommand
             import os
             import time
             
@@ -743,7 +743,7 @@ class VideoStreamController(QObject):
         if not self._carplay_node:
             return
         
-        from src.protocol.sendable import TouchAction
+        from .protocol.sendable import TouchAction
         
         # Get current resolution from config
         width = self._video_config['width']

@@ -39,6 +39,7 @@ class VideoStreamController(QObject):
     dongleStatusChanged = Signal(str)
     dongleConnected = Signal()
     dongleDisconnected = Signal()
+    connectionFailed = Signal()  # Thread-safe signal for reconnect
     videoFrameReceived = Signal(int, int, int)  # width, height, data_length
     audioReceived = Signal(int)  # audio data length
     currentSongChanged = Signal(str)
@@ -82,6 +83,10 @@ class VideoStreamController(QObject):
         
         # Setup reconnect timer
         self._reconnect_timer.timeout.connect(self._attempt_reconnect)
+        self._reconnect_timer.setSingleShot(True)
+        
+        # Setup connection failure handler (thread-safe)
+        self.connectionFailed.connect(self._on_connection_failed)
         self._reconnect_timer.setSingleShot(True)
         
         # === Signal Connections ===
@@ -233,14 +238,15 @@ class VideoStreamController(QObject):
             self._audio_player.setVolume(volume)
     
     def _on_decoder_errors(self):
-        """Handle too many decoder errors - force reconnection"""
-        print("🔄 Decoder errors detected - forcing reconnection...")
+        """Handle too many decoder errors - force reconnection with delay"""
+        print("🔄 Decoder errors detected - disconnecting to reset phone...")
         
-        # Disconnect and reconnect to force fresh stream
+        # Disconnect
         self.disconnectDongle()
         
-        # Wait a moment before reconnecting
-        QTimer.singleShot(2000, self.connectDongle)  # Reconnect after 2 seconds
+        # Wait longer before reconnecting - phone needs time to reset CarPlay connection
+        print("⏳ Waiting 15 seconds for phone to fully reset...")
+        QTimer.singleShot(15000, self.connectDongle)  # Reconnect after 15 seconds
     
     def _attempt_reconnect(self):
         """Attempt to reconnect to dongle after failure"""
@@ -302,7 +308,6 @@ class VideoStreamController(QObject):
         elif msg.msg_type == MessageType.PHASE:
             if hasattr(msg.message, 'phase'):
                 print(f"🔄 Connection Phase: {msg.message.phase}")
-        # Skip heartbeat logging (too spammy)
     
     def _handle_plugged(self, message: Plugged):
         """Handle phone plugged event"""
@@ -390,24 +395,30 @@ class VideoStreamController(QObject):
             self._siri_mode = False
     
     def _handle_failure(self):
-        """Handle communication failure"""
+        """Handle communication failure - emit signal for thread-safe handling"""
         print("❌ CarPlay communication failed")
         self.dongleStatus = "Failed"
         self.dongleDisconnected.emit()
         
-        # Start reconnection attempts
+        # Trigger reconnect via signal (thread-safe)
+        self.connectionFailed.emit()
+    
+    def _on_connection_failed(self):
+        """Handle connection failure in main Qt thread (called via signal)"""
         if self._reconnect_attempts < self._max_reconnect_attempts:
             delay = min(5000 * (2 ** self._reconnect_attempts), 30000)  # Exponential backoff, max 30s
             print(f"🔄 Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
             self._reconnect_timer.start(delay)
+        else:
+            print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) reached")
     
     def _handle_command(self, message):
         """Handle system commands"""
         command_value = message.value
-        print(f"⚙️  Command received: {command_value}")
         
+        # Only log commands we actually handle
         if command_value == 3:
-            print("⚙️  AudioInputConfig (Command 3) - showing config panel")
+            print("⚙️  AudioInputConfig - showing config panel")
             self.showConfigPanel.emit()
         elif command_value == 1:
             print("⚙️  Showing CarPlay config panel")
@@ -767,6 +778,10 @@ def main():
         print(f"VideoDisplay attached to container: {video_container.property('width')}x{video_container.property('height')}")
     else:
         print("Warning: videoContainer not found!")
+    
+    # Auto-connect to dongle on startup
+    print("🚀 Auto-connecting to dongle...")
+    QTimer.singleShot(500, video_controller.connectDongle)
     
     sys.exit(app.exec())
 

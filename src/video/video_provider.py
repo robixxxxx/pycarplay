@@ -15,12 +15,14 @@ class VideoFrameProvider(QQuickPaintedItem):
     """
     
     frameCountChanged = Signal()
+    fillModeChanged = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_frame: Optional[QImage] = None
         self._frame_count = 0
         self._last_draw_rect = QRectF()  # Initialize draw rect
+        self._fill_mode = "fit"  # "fit" or "stretch"
         
         # Set flags for better performance
         self.setAntialiasing(True)
@@ -29,6 +31,20 @@ class VideoFrameProvider(QQuickPaintedItem):
         
         # Create placeholder
         self._create_placeholder()
+    
+    @Property(str, notify=fillModeChanged)
+    def fillMode(self):
+        """Get fill mode (fit/stretch)"""
+        return self._fill_mode
+    
+    @fillMode.setter
+    def fillMode(self, mode: str):
+        """Set fill mode (fit/stretch)"""
+        if self._fill_mode != mode and mode in ["fit", "stretch"]:
+            self._fill_mode = mode
+            self.fillModeChanged.emit()
+            self.update()  # Redraw with new mode
+            print(f"VideoFrameProvider: Fill mode changed to {mode}")
     
     def _create_placeholder(self):
         """Create placeholder image"""
@@ -59,26 +75,31 @@ class VideoFrameProvider(QQuickPaintedItem):
             painter.fillRect(0, 0, self.width(), self.height(), Qt.black)
             return
         
-        # Calculate aspect ratio preserving rectangle
+        # Calculate drawing rectangle based on fill mode
         img_width = self._current_frame.width()
         img_height = self._current_frame.height()
         
         if img_width == 0 or img_height == 0:
             return
         
-        img_ratio = img_width / img_height
-        widget_ratio = self.width() / self.height()
-        
-        if img_ratio > widget_ratio:
-            # Image is wider - fit to width
-            scaled_height = self.width() / img_ratio
-            y_offset = (self.height() - scaled_height) / 2
-            draw_rect = QRectF(0, y_offset, self.width(), scaled_height)
+        if self._fill_mode == "stretch":
+            # Stretch to fill entire window
+            draw_rect = QRectF(0, 0, self.width(), self.height())
         else:
-            # Image is taller - fit to height  
-            scaled_width = self.height() * img_ratio
-            x_offset = (self.width() - scaled_width) / 2
-            draw_rect = QRectF(x_offset, 0, scaled_width, self.height())
+            # Fit - preserve aspect ratio
+            img_ratio = img_width / img_height
+            widget_ratio = self.width() / self.height()
+            
+            if img_ratio > widget_ratio:
+                # Image is wider - fit to width
+                scaled_height = self.width() / img_ratio
+                y_offset = (self.height() - scaled_height) / 2
+                draw_rect = QRectF(0, y_offset, self.width(), scaled_height)
+            else:
+                # Image is taller - fit to height  
+                scaled_width = self.height() * img_ratio
+                x_offset = (self.width() - scaled_width) / 2
+                draw_rect = QRectF(x_offset, 0, scaled_width, self.height())
         
         # Store draw_rect for touch coordinate conversion
         self._last_draw_rect = draw_rect

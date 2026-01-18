@@ -97,105 +97,23 @@ ApplicationWindow {
         }
     }
 
-    ColumnLayout {
+    // Video Player Area - Full Screen
+    Rectangle {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 10
+        color: "#000000"
 
-        // Header
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "#2d2d2d"
-            radius: 8
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 10
-
-                Label {
-                    text: "PyCarPlay Video Stream"
-                    font.pixelSize: 24
-                    font.bold: true
-                    color: "#ffffff"
-                    Layout.fillWidth: true
-                }
-
-                // Dongle status indicator
-                Rectangle {
-                    Layout.preferredWidth: 200
-                    Layout.preferredHeight: 40
-                    color: videoController.dongleStatus.startsWith("Connected") ? "#28a745" : 
-                           videoController.dongleStatus.startsWith("Connecting") || videoController.dongleStatus.startsWith("Reconnecting") ? "#ffc107" : 
-                           videoController.dongleStatus.startsWith("Failed") ? "#dc3545" : "#6c757d"
-                    radius: 4
-                    
-                    Label {
-                        anchors.centerIn: parent
-                        text: videoController.dongleStatus
-                        color: "#ffffff"
-                        font.bold: true
-                        font.pixelSize: 12
-                    }
-                    
-                    // Pulsing animation for connecting/reconnecting states
-                    SequentialAnimation {
-                        running: videoController.dongleStatus.startsWith("Connecting") || 
-                                videoController.dongleStatus.startsWith("Reconnecting")
-                        loops: Animation.Infinite
-                        NumberAnimation {
-                            target: parent
-                            property: "opacity"
-                            from: 1.0
-                            to: 0.5
-                            duration: 500
-                        }
-                        NumberAnimation {
-                            target: parent
-                            property: "opacity"
-                            from: 0.5
-                            to: 1.0
-                            duration: 500
-                        }
-                    }
-                }
-
-                Button {
-                    text: videoController.dongleStatus.startsWith("Connected") ? "Disconnect" : "Connect USB"
-                    onClicked: {
-                        if (videoController.dongleStatus.startsWith("Connected")) {
-                            videoController.disconnectDongle()
-                        } else {
-                            videoController.connectDongle()
-                        }
-                    }
-                    Layout.preferredWidth: 120
-                }
-            }
-        }
-
-        // Video Player Area
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: "#000000"
-            radius: 8
-            border.color: "#3d3d3d"
-            border.width: 2
-
-            // Video display container - videoDisplay will be added from Python
-            Item {
-                id: videoContainer
-                objectName: "videoContainer"
-                anchors.fill: parent
-                anchors.margins: 2
+        // Video display container - videoDisplay will be added from Python
+        Item {
+            id: videoContainer
+            objectName: "videoContainer"
+            anchors.fill: parent
                 
                 // Touch handling
                 MouseArea {
                     id: touchArea
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
+                    enabled: videoController.dongleStatus.startsWith("Connected")
                     
                     onPressed: function(mouse) {
                         // Convert screen coordinates to video coordinates (1280x720)
@@ -248,78 +166,62 @@ ApplicationWindow {
                     visible: false
                     z: 1000
                 }
-            }
             
             // Overlay items
             Item {
                 anchors.fill: parent
+                z: 100  // Above video
                 
-                // Placeholder when no video
+                // Status info when disconnected (no button)
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 400
-                    height: 200
+                    width: 300
+                    height: 250
                     color: "#2d2d2d"
-                    radius: 8
-                    visible: videoDisplay.frameCount === 0
+                    radius: 12
+                    visible: !videoController.dongleStatus.startsWith("Connected")
                     
                     ColumnLayout {
                         anchors.centerIn: parent
-                        spacing: 10
+                        spacing: 30
                         
                         Label {
-                            text: "📹"
-                            font.pixelSize: 64
+                            text: "🔌"
+                            font.pixelSize: 80
                             color: "#888"
                             Layout.alignment: Qt.AlignHCenter
                         }
                         
                         Label {
-                            text: "Czekam na wideo z CarPlay..."
+                            text: videoController.dongleStatus.startsWith("Reconnecting") ? 
+                                  "Łączenie..." : 
+                                  videoController.dongleStatus.startsWith("Connecting") ?
+                                  "Inicjalizacja..." :
+                                  "Czekam na połączenie..."
                             font.pixelSize: 18
-                            color: "#aaa"
+                            font.bold: true
+                            color: "#ffffff"
                             Layout.alignment: Qt.AlignHCenter
                         }
                         
                         Label {
-                            text: "Podłącz iPhone/Android do dongla"
-                            font.pixelSize: 14
+                            text: videoController.dongleStatus
+                            font.pixelSize: 12
                             color: "#888"
                             Layout.alignment: Qt.AlignHCenter
                         }
-                    }
-                }
-                
-                // Frame counter overlay
-                Rectangle {
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.margins: 10
-                    width: frameLabel.width + 20
-                    height: frameLabel.height + 10
-                    color: "#000000"
-                    opacity: 0.7
-                    radius: 4
-                    visible: videoDisplay.frameCount > 0
-                    
-                    Label {
-                        id: frameLabel
-                        anchors.centerIn: parent
-                        text: "Frame #" + videoDisplay.frameCount
-                        color: "#00ff00"
-                        font.family: "monospace"
-                        font.pixelSize: 12
                     }
                 }
             }
-        }  // End of Video Player Area Rectangle
+        }  // End of videoContainer Item
         
-        // Media Info Bar (Music & Navigation)
+        // Media Info Bar (Music & Navigation) - Overlay at bottom
         Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "#2d2d2d"
-            radius: 8
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 60
+            color: "#aa2d2d2d"  // Semi-transparent
             visible: videoController.currentSong !== "" || videoController.navigationInfo !== ""
 
             RowLayout {
@@ -382,129 +284,7 @@ ApplicationWindow {
                 }
             }
         }
-
-        // Info Bar
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: "#2d2d2d"
-            radius: 8
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 20
-
-                Label {
-                    text: "📊 Status:"
-                    color: "#aaa"
-                    font.pixelSize: 14
-                }
-
-                Label {
-                    id: statusLabel
-                    text: videoDisplay.frameCount > 0 ? "Streaming active" : "Waiting for connection"
-                    color: videoDisplay.frameCount > 0 ? "#00ff00" : "#888"
-                    font.pixelSize: 14
-                    font.bold: true
-                }
-
-                Label {
-                    text: "•"
-                    color: "#444"
-                    font.pixelSize: 14
-                }
-
-                Label {
-                    text: "Frames: " + videoDisplay.frameCount
-                    color: "#aaa"
-                    font.pixelSize: 14
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Label {
-                    text: "PyCarPlay v1.0"
-                    color: "#666"
-                    font.pixelSize: 12
-                }
-                
-                // Media logging toggle button
-                Button {
-                    id: loggingButton
-                    text: "📝"
-                    font.pixelSize: 16
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 30
-                    property bool loggingEnabled: false
-                    ToolTip.visible: hovered
-                    ToolTip.text: loggingEnabled ? "Stop media logging" : "Start media logging"
-                    onClicked: {
-                        if (loggingEnabled) {
-                            videoController.stopMediaLogging()
-                            loggingEnabled = false
-                            text = "📝"
-                        } else {
-                            videoController.startMediaLogging()
-                            loggingEnabled = true
-                            text = "📝✅"
-                        }
-                    }
-                }
-                
-                // Microphone button
-                Button {
-                    id: micButton
-                    text: "🎤"
-                    font.pixelSize: 16
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 30
-                    property bool micEnabled: false
-                    ToolTip.visible: hovered
-                    ToolTip.text: micEnabled ? "Stop microphone" : "Start microphone (Siri/Calls)"
-                    onClicked: {
-                        if (micEnabled) {
-                            videoController.stopMicrophone()
-                            micEnabled = false
-                            text = "🎤"
-                        } else {
-                            videoController.startMicrophone()
-                            micEnabled = true
-                            text = "🎤🔴"
-                        }
-                    }
-                }
-                
-                // Audio toggle button
-                Button {
-                    id: audioButton
-                    text: "🔊"
-                    font.pixelSize: 16
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 30
-                    property bool audioEnabled: true
-                    ToolTip.visible: hovered
-                    ToolTip.text: audioEnabled ? "Mute audio" : "Unmute audio"
-                    onClicked: {
-                        videoController.toggleAudio()
-                        audioEnabled = !audioEnabled
-                        text = audioEnabled ? "🔊" : "🔇"
-                    }
-                }
-                
-                // Help button
-                Button {
-                    text: "?"
-                    font.bold: true
-                    Layout.preferredWidth: 30
-                    Layout.preferredHeight: 30
-                    onClicked: helpDialog.visible = !helpDialog.visible
-                    ToolTip.visible: hovered
-                    ToolTip.text: "Keyboard shortcuts"
-                }
-            }
-        }
-    }
+    }  // End of Video Player Area Rectangle
     
     // Help Dialog
     Rectangle {
@@ -665,6 +445,59 @@ ApplicationWindow {
                 font.bold: true
                 color: "#ffffff"
                 Layout.alignment: Qt.AlignHCenter
+            }
+            
+            // Connection settings
+            GroupBox {
+                title: "🔌 Połączenie"
+                Layout.fillWidth: true
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 15
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Status:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        Rectangle {
+                            Layout.preferredWidth: 180
+                            Layout.preferredHeight: 30
+                            color: videoController.dongleStatus.startsWith("Connected") ? "#28a745" : 
+                                   videoController.dongleStatus.startsWith("Connecting") || videoController.dongleStatus.startsWith("Reconnecting") ? "#ffc107" : 
+                                   videoController.dongleStatus.startsWith("Failed") ? "#dc3545" : "#6c757d"
+                            radius: 4
+                            
+                            Label {
+                                anchors.centerIn: parent
+                                text: videoController.dongleStatus
+                                color: "#ffffff"
+                                font.bold: true
+                                font.pixelSize: 11
+                            }
+                        }
+                        
+                        Button {
+                            text: videoController.dongleStatus.startsWith("Connected") ? "Rozłącz" : "Połącz"
+                            Layout.preferredWidth: 120
+                            enabled: !videoController.dongleStatus.startsWith("Connecting") && 
+                                    !videoController.dongleStatus.startsWith("Reconnecting")
+                            onClicked: {
+                                if (videoController.dongleStatus.startsWith("Connected")) {
+                                    videoController.disconnectDongle()
+                                } else {
+                                    videoController.connectDongle()
+                                }
+                            }
+                        }
+                    }
+                }
             }
             
             // Microphone settings
@@ -874,10 +707,34 @@ ApplicationWindow {
                         }
                     }
                     
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        
+                        Label {
+                            text: "Dopasowanie:"
+                            color: "#ffffff"
+                            Layout.preferredWidth: 180
+                        }
+                        
+                        ComboBox {
+                            id: fillModeCombo
+                            Layout.fillWidth: true
+                            model: ["Dopasuj (zachowaj proporcje)", "Rozciągnij (wypełnij okno)"]
+                            currentIndex: 0
+                            
+                            onCurrentIndexChanged: {
+                                if (videoDisplay) {
+                                    videoDisplay.fillMode = currentIndex === 0 ? "fit" : "stretch"
+                                }
+                            }
+                        }
+                    }
+                    
                     Label {
-                        text: "Higher DPI = sharper UI elements (requires reconnect)"
+                        text: "• Dopasuj: zachowuje proporcje obrazu, może pokazywać czarne pasy\n• Rozciągnij: wypełnia całe okno, może zniekształcić obraz"
                         color: "#888"
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }

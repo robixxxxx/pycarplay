@@ -93,13 +93,16 @@ class DongleDriver:
     
     def find_device(self) -> Optional[usb.core.Device]:
         """Find known USB device"""
+        # Search for known devices
         for device_info in self.KNOWN_DEVICES:
             device = usb.core.find(
                 idVendor=device_info['vendor_id'],
                 idProduct=device_info['product_id']
             )
             if device:
+                print(f"✅ Found CarPlay dongle: {hex(device.idVendor)}:{hex(device.idProduct)}")
                 return device
+        
         return None
     
     def initialise(self, device: Optional[usb.core.Device] = None):
@@ -372,12 +375,19 @@ class DongleDriver:
         # Start heartbeat thread
         self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self._heartbeat_thread.start()
-        
-        print("Driver started")
+    
+    def disconnect_phone(self):
+        """Send disconnect phone command to notify phone before closing"""
+        try:
+            from ..protocol.sendable import SendDisconnectPhone
+            print("📱 Sending disconnect command to phone...")
+            self.send(SendDisconnectPhone())
+            time.sleep(0.5)  # Give phone time to process disconnect
+        except Exception as e:
+            print(f"⚠️  Failed to send disconnect command: {e}")
     
     def close(self):
         """Close device connection"""
-        print("Closing driver")
         self._running = False
         
         # Don't try to join ourselves if we're calling from read/heartbeat thread
@@ -398,7 +408,6 @@ class DongleDriver:
         
         self.in_ep = None
         self.out_ep = None
-        print("Driver closed")
 
 
 if __name__ == "__main__":

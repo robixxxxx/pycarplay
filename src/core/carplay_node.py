@@ -248,9 +248,9 @@ class CarplayNode:
             import traceback
             traceback.print_exc()
             
-            # Retry after 2 seconds
-            print("🔄 Retrying in 2s...")
-            time.sleep(2)
+            # Notify failure
+            self._notify(MessageType.FAILURE)
+            return False
     
     def stop(self):
         """Stop CarPlay/AndroidAuto session

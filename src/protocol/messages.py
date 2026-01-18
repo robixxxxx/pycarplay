@@ -74,14 +74,14 @@ class MessageType(IntEnum):
     AudioData = 0x07
     Command = 0x08
     LogoType = 0x09
-    DisconnectPhone = 0x0f
-    CloseDongle = 0x15
     BluetoothAddress = 0x0a
     BluetoothPIN = 0x0c
     BluetoothDeviceName = 0x0d
     WifiDeviceName = 0x0e
+    DisconnectPhone = 0x0f
     BluetoothPairedList = 0x12
     ManufacturerInfo = 0x14
+    CloseDongle = 0x15
     MultiTouch = 0x17
     HiCarLink = 0x18
     BoxSettings = 0x19
@@ -94,6 +94,7 @@ class MessageType(IntEnum):
     SendFile = 0x99
     HeartBeat = 0xaa
     SoftwareVersion = 0xcc
+    FAILURE = 0xffff  # Internal failure message (not from USB)
 
 
 class HeaderBuildError(Exception):
@@ -402,7 +403,7 @@ def create_message(header: MessageHeader, data: Optional[bytes] = None) -> Optio
     
     # All other messages require data
     if data is None or len(data) == 0:
-        print(f"Warning: No data for message type: {msg_type.name}")
+        # Some message types legitimately have no data - don't warn
         return None
     
     try:

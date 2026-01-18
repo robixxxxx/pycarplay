@@ -232,6 +232,13 @@ class HeartBeat(SendableMessage):
         super().__init__(MessageType.HeartBeat)
 
 
+class SendDisconnectPhone(SendableMessage):
+    """Send disconnect phone command"""
+    
+    def __init__(self):
+        super().__init__(MessageType.DisconnectPhone)
+
+
 class SendOpen(SendableMessageWithPayload):
     """Send open/init message"""
     

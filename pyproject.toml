@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycarplay-qt"
+version = "0.1.0"
+description = "CarPlay integration module for PyQt6 applications with customizable UI"
+readme = "README.md"
+authors = [
+    {name = "Robert Burda"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Video",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["carplay", "pyqt6", "automotive", "qt", "multimedia", "video"]
+dependencies = [
+    "PySide6>=6.4.0",
+    "pyusb>=1.2.1",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "pyaudio>=0.2.13",
+    "cryptography>=41.0.0",
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/robertburda/pycarplay"
+"Bug Reports" = "https://github.com/robertburda/pycarplay/issues"
+Source = "https://github.com/robertburda/pycarplay"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pycarplay = ["ui/default/*.qml", "ui/components/*.qml"]

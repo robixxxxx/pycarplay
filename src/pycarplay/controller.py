@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """
-PyCarPlay - CarPlay/AndroidAuto Video Stream Application
+PyCarPlay - CarPlay Controller
 
-Main application controller connecting CarPlay dongle with QML UI.
+Main controller connecting CarPlay dongle with QML UI.
 Handles video decoding, audio playback, microphone input, and media metadata.
 """
 import sys
@@ -11,14 +10,16 @@ from PySide6.QtCore import QUrl, QObject, Slot, Signal, Property, QTimer
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
-from src.core.carplay_node import CarplayNode, CarplayMessage, MessageType
-from src.core.dongle_driver import DongleConfig, HandDriveType
-from src.protocol.messages import VideoData, AudioData, Plugged, Unplugged, Opened, DECODE_TYPE_MAP
-from src.video.video_decoder import VideoDecoder
-from src.video.video_provider import VideoFrameProvider
-from src.audio.audio_player import AudioPlayer
-from src.core.media_logger import MediaLogger
-from src.audio.microphone import MicrophoneInput
+
+from .core.carplay_node import CarplayNode, CarplayMessage, MessageType
+from .core.dongle_driver import DongleConfig, HandDriveType
+from .protocol.messages import VideoData, AudioData, Plugged, Unplugged, Opened, DECODE_TYPE_MAP
+from .video.video_decoder import VideoDecoder
+from .video.video_provider import VideoFrameProvider
+from .audio.audio_player import AudioPlayer
+from .core.media_logger import MediaLogger
+from .audio.microphone import MicrophoneInput
+from .config import CarPlayConfig, DEFAULT_CONFIG
 
 
 class VideoStreamController(QObject):
@@ -49,8 +50,11 @@ class VideoStreamController(QObject):
     hideConfigPanel = Signal()
     videoConfigChanged = Signal(int, int, int)  # width, height, dpi
     
-    def __init__(self, video_provider: VideoFrameProvider):
+    def __init__(self, video_provider: VideoFrameProvider, config: CarPlayConfig = None):
         super().__init__()
+        
+        # Configuration
+        self._config = config if config is not None else DEFAULT_CONFIG
         
         # === Core Components ===
         self._video_decoder = VideoDecoder()
@@ -68,17 +72,17 @@ class VideoStreamController(QObject):
         self._navigation_info = ""
         self._siri_mode = False  # Mono audio for Siri/calls
         self._video_config = {
-            'width': 1280,
-            'height': 720,
-            'dpi': 160
+            'width': self._config.video.width,
+            'height': self._config.video.height,
+            'dpi': self._config.video.dpi
         }
         self._reconnect_timer = QTimer()
         self._reconnect_attempts = 0
-        self._max_reconnect_attempts = 5
+        self._max_reconnect_attempts = self._config.dongle.reconnect_max_attempts
         self._phone_connected = False
         self._pending_settings_reload = False
         
-        # Load saved config
+        # Load saved config (if exists, otherwise use config values)
         self._load_video_config()
         
         # Setup reconnect timer
@@ -594,6 +598,19 @@ class VideoStreamController(QObject):
     def getVideoDpi(self):
         """Get current video DPI"""
         return self._video_config['dpi']
+    
+    def apply_video_config(self, width: int, height: int, dpi: int):
+        """
+        Apply video configuration programmatically
+        
+        This method is called by CarPlayWidget to apply config values.
+        It's separate from setVideoSettings which is called from QML.
+        """
+        self._video_config['width'] = width
+        self._video_config['height'] = height
+        self._video_config['dpi'] = dpi
+        self.videoConfigChanged.emit(width, height, dpi)
+        print(f"⚙️  Applied video config: {width}x{height} @ {dpi} DPI")
     
     @Slot(int, int, int)
     def setVideoSettings(self, width: int, height: int, dpi: int):

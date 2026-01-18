@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include requirements.txt
+include INSTALL.md
+recursive-include src/pycarplay/ui/default *.qml
+recursive-include src/pycarplay/ui/components *.qml *.qmldir
+recursive-include examples *.py
+recursive-include assets *

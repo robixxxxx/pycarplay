@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pycarplay-qt"
+name = "pycarplay"
 version = "0.1.0"
 description = "CarPlay integration module for PyQt6 applications with customizable UI"
 readme = "README.md"

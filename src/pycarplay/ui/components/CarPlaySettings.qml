@@ -143,15 +143,15 @@ Rectangle {
                         }
                         
                         Button {
-                            text: videoController && videoController.dongleStatus.startsWith("Connected") ? "Rozłącz" : "Połącz"
+                            text: !!videoController && !!videoController.dongleStatus && videoController.dongleStatus.startsWith("Connected") ? "Rozłącz" : "Połącz"
                             Layout.preferredWidth: 120
-                            enabled: videoController && 
+                            enabled: !!videoController && !!videoController.dongleStatus &&
                                     !videoController.dongleStatus.startsWith("Connecting") && 
                                     !videoController.dongleStatus.startsWith("Reconnecting")
                             onClicked: {
-                                if (videoController.dongleStatus.startsWith("Connected")) {
+                                if (!!videoController && !!videoController.dongleStatus && videoController.dongleStatus.startsWith("Connected")) {
                                     videoController.disconnectDongle()
-                                } else {
+                                } else if (!!videoController && !!videoController.dongleStatus) {
                                     videoController.connectDongle()
                                 }
                             }

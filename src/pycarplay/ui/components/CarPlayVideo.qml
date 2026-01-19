@@ -55,6 +55,16 @@ Rectangle {
                     } catch (e) {
                         console.log("videoController.handleTouch error (down):", e)
                     }
+                } else if (typeof sendTouchNormalized === 'function') {
+                    // Fallback: send normalized coords (0.0-1.0)
+                    var nx = mouse.x / width
+                    var ny = mouse.y / height
+                    try {
+                        sendTouchNormalized(nx, ny, "down")
+                        console.log("sendTouchNormalized invoked: down", nx, ny)
+                    } catch (e) {
+                        console.log("sendTouchNormalized error (down):", e)
+                    }
                 } else {
                     console.log("videoController not available onPressed")
                 }
@@ -82,6 +92,15 @@ Rectangle {
                         } catch (e) {
                             console.log("videoController.handleTouch error (move):", e)
                         }
+                    } else if (typeof sendTouchNormalized === 'function') {
+                        var nxm = mouse.x / width
+                        var nym = mouse.y / height
+                        try {
+                            sendTouchNormalized(nxm, nym, "move")
+                            console.log("sendTouchNormalized invoked: move", nxm, nym)
+                        } catch (e) {
+                            console.log("sendTouchNormalized error (move):", e)
+                        }
                     } else {
                         console.log("videoController not available onPositionChanged")
                     }
@@ -100,6 +119,15 @@ Rectangle {
                         console.log("videoController.handleTouch invoked: up")
                     } catch (e) {
                         console.log("videoController.handleTouch error (up):", e)
+                    }
+                } else if (typeof sendTouchNormalized === 'function') {
+                    var nxu = mouse.x / width
+                    var nyu = mouse.y / height
+                    try {
+                        sendTouchNormalized(nxu, nyu, "up")
+                        console.log("sendTouchNormalized invoked: up", nxu, nyu)
+                    } catch (e) {
+                        console.log("sendTouchNormalized error (up):", e)
                     }
                 } else {
                     console.log("videoController not available onReleased")

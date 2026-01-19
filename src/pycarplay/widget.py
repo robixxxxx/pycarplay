@@ -162,6 +162,11 @@ class CarPlayWidget(QWidget):
             config=self.config
         )
         self.qml_widget.rootContext().setContextProperty("videoController", self.controller)
+        # Expose normalized touch sender directly so QML can call it even if `videoController` is not bound
+        try:
+            self.qml_widget.rootContext().setContextProperty("sendTouchNormalized", self.controller.handleTouchNormalized)
+        except Exception:
+            pass
         
         # Load QML (now videoController is available)
         self.qml_widget.setSource(QUrl.fromLocalFile(str(qml_path)))

@@ -758,15 +758,32 @@ class VideoStreamController(QObject):
         width = self._video_config['width']
         height = self._video_config['height']
         
-        # Normalize to 0.0-1.0 range using actual resolution
-        norm_x = max(0.0, min(1.0, x / width))
-        norm_y = max(0.0, min(1.0, y / height))
+        # Accept either pixel coordinates or normalized 0.0-1.0 coordinates.
+        if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+            # Already normalized
+            norm_x = x
+            norm_y = y
+        else:
+            # Normalize pixel coordinates to 0.0-1.0
+            norm_x = max(0.0, min(1.0, x / width))
+            norm_y = max(0.0, min(1.0, y / height))
         
         action_names = {14: "DOWN", 15: "MOVE", 16: "UP"}
         action_name = action_names.get(action, f"UNKNOWN({action})")
         
         self._carplay_node.send_touch(norm_x, norm_y, TouchAction(action))
-        print(f"  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
+        print(f"  Touch {action_name}: ({x}, {y}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
+
+    @Slot(float, float, str)
+    def handleTouchNormalized(self, nx: float, ny: float, action: str):
+        """Handle normalized touch coordinates from QML (0.0 - 1.0)."""
+        try:
+            action_map = {'down': 14, 'move': 15, 'up': 16}
+            code = action_map.get(str(action).lower(), 15)
+            # Call sendTouch which accepts normalized values
+            self.sendTouch(float(nx), float(ny), code)
+        except Exception as e:
+            print(f"handleTouchNormalized error: {e}")
 
     @Slot(float, float, str)
     def handleTouch(self, screen_x: float, screen_y: float, action: str):

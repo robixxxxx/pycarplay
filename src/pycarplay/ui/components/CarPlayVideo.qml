@@ -17,7 +17,7 @@ Rectangle {
     property string fillMode: "fit"  // "fit" or "stretch"
     
     // Video Display
-    VideoOutput {
+    VideoFrameProvider {
         id: videoDisplay
         anchors.fill: parent
         

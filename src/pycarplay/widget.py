@@ -127,6 +127,10 @@ class CarPlayWidget(QWidget):
             QTimer.singleShot(500, self.connect)
     
     def _setup_ui(self):
+        # Register VideoFrameProvider as a QML type (for QML instantiation)
+        from PySide6.QtQml import qmlRegisterType
+        from .video.video_provider import VideoFrameProvider
+        qmlRegisterType(VideoFrameProvider, 'PyCarPlay', 1, 0, 'VideoFrameProvider')
         """Setup the Qt Quick widget with QML UI"""
         # Create layout
         layout = QVBoxLayout(self)

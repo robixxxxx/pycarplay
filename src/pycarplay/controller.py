@@ -768,6 +768,40 @@ class VideoStreamController(QObject):
         self._carplay_node.send_touch(norm_x, norm_y, TouchAction(action))
         print(f"  Touch {action_name}: ({int(x)}, {int(y)}) -> ({norm_x:.3f}, {norm_y:.3f}) [{width}x{height}]")
 
+    @Slot(float, float, str)
+    def handleTouch(self, screen_x: float, screen_y: float, action: str):
+        """Handle touch calls from QML: map screen coords to video coords and send touch."""
+        try:
+            # Ask provider to map to video coordinates
+            coords = None
+            if self._video_provider is None:
+                print("handleTouch: no video provider available")
+                return
+
+            try:
+                coords = self._video_provider.mapToVideoCoordinates(float(screen_x), float(screen_y))
+            except Exception:
+                # Some providers (QML objects) may return QVariantList via method call differently
+                try:
+                    coords = self._video_provider.mapToVideoCoordinates(screen_x, screen_y)
+                except Exception as e:
+                    print(f"handleTouch: failed to map coords: {e}")
+                    return
+
+            if not coords or len(coords) < 2:
+                return
+
+            vx, vy = int(coords[0]), int(coords[1])
+
+            # Map action string to TouchAction codes
+            action_map = {'down': 14, 'move': 15, 'up': 16}
+            action_code = action_map.get(str(action).lower(), 15)
+
+            # Send touch to CarPlay
+            self.sendTouch(vx, vy, action_code)
+        except Exception as e:
+            print(f"handleTouch error: {e}")
+
 
 def main():
     app = QGuiApplication(sys.argv)

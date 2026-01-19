@@ -101,7 +101,7 @@ Rectangle {
     CarPlayVideo {
         id: carplayVideo
         anchors.fill: parent
-        videoController: mainWindow.videoController
+        videoController: videoController
         showTouchIndicator: true
         showMediaInfo: true
         showNavigationInfo: true

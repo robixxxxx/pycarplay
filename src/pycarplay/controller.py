@@ -256,12 +256,7 @@ class VideoStreamController(QObject):
         """Attempt to reconnect to dongle after failure"""
         self._reconnect_attempts += 1
         
-        if self._reconnect_attempts > self._max_reconnect_attempts:
-            print(f"Max reconnection attempts ({self._max_reconnect_attempts}) reached. Please reconnect manually.")
-            self.dongleStatus = "Failed - Manual reconnection needed"
-            return
-        
-        print(f"Reconnection attempt #{self._reconnect_attempts}/{self._max_reconnect_attempts}...")
+        print(f"Reconnection attempt #{self._reconnect_attempts}...")
         self.dongleStatus = f"Reconnecting... (attempt {self._reconnect_attempts})"
         
         # Disconnect first
@@ -409,12 +404,9 @@ class VideoStreamController(QObject):
     
     def _on_connection_failed(self):
         """Handle connection failure in main Qt thread (called via signal)"""
-        if self._reconnect_attempts < self._max_reconnect_attempts:
-            delay = min(5000 * (2 ** self._reconnect_attempts), 30000)  # Exponential backoff, max 30s
-            print(f" Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
-            self._reconnect_timer.start(delay)
-        else:
-            print(f" Max reconnection attempts ({self._max_reconnect_attempts}) reached")
+        delay = 5000  # Exponential backoff, max 30s
+        print(f" Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
+        self._reconnect_timer.start(delay)
     
     def _handle_command(self, message):
         """Handle system commands"""

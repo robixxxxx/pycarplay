@@ -348,11 +348,20 @@ class VideoStreamController(QObject):
         """Handle phone unplugged event"""
         print("Phone unplugged")
         self._phone_connected = False
-        self.dongleStatus = "Connected - No phone"
-        
-        # Start reconnection attempts
-        print("Phone disconnected - will monitor for reconnection")
+
+        # Fully disconnect current session and reset state so we can search for phone again
+        try:
+            self.disconnectDongle()
+        except Exception as e:
+            print(f"Error while disconnecting after unplug: {e}")
+
+        # Update status and reset reconnect counter
+        self.dongleStatus = "Disconnected - searching for phone..."
+        print("Phone disconnected - restarting search for phone/dongle")
         self._reconnect_attempts = 0
+
+        # Start a reconnect attempt shortly to begin scanning/searching again
+        QTimer.singleShot(1000, self.connectDongle)
     
     def _handle_video(self, message: VideoData):
         """Handle video data"""

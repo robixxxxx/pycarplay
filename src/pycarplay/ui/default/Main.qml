@@ -111,6 +111,7 @@ Rectangle {
     // Settings Panel Component
     CarPlaySettings {
         id: settingsPanel
+        objectName: "settingsPanel"
         videoController: videoController
         
         onSettingsApplied: {

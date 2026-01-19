@@ -228,6 +228,17 @@ class CarPlayWidget(QWidget):
                         print(f"Failed to set carplayVideo.videoController: {e}")
                 else:
                     print("carplayVideo QML object not found to set controller property")
+                # Also set controller on settings panel if present
+                try:
+                    settings_obj = root_obj.findChild(QObject, "settingsPanel")
+                    if settings_obj is not None:
+                        try:
+                            settings_obj.setProperty("videoController", self.controller)
+                            print("Set settingsPanel.videoController from Python context")
+                        except Exception as e:
+                            print(f"Failed to set settingsPanel.videoController: {e}")
+                except Exception:
+                    pass
         except Exception as e:
             print(f"Error while setting carplayVideo controller: {e}")
         

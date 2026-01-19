@@ -35,6 +35,8 @@ Rectangle {
             property bool isDragging: false
             
             onPressed: (mouse) => {
+                console.log("MouseArea.onPressed at", mouse.x, mouse.y)
+                console.log("videoController present:", !!videoController)
                 pressX = mouse.x
                 pressY = mouse.y
                 isDragging = false
@@ -52,6 +54,7 @@ Rectangle {
             }
             
             onPositionChanged: (mouse) => {
+                if (pressed) console.log("MouseArea.onPositionChanged at", mouse.x, mouse.y)
                 if (pressed) {
                     var dx = Math.abs(mouse.x - pressX)
                     var dy = Math.abs(mouse.y - pressY)
@@ -72,6 +75,7 @@ Rectangle {
             }
             
             onReleased: (mouse) => {
+                console.log("MouseArea.onReleased at", mouse.x, mouse.y)
                 if (showTouchIndicator) {
                     touchIndicator.visible = false
                 }

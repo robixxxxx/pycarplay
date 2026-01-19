@@ -49,7 +49,14 @@ Rectangle {
                 }
                 
                 if (videoController) {
-                    videoController.handleTouch(mouse.x, mouse.y, "down")
+                    try {
+                        videoController.handleTouch(mouse.x, mouse.y, "down")
+                        console.log("videoController.handleTouch invoked: down")
+                    } catch (e) {
+                        console.log("videoController.handleTouch error (down):", e)
+                    }
+                } else {
+                    console.log("videoController not available onPressed")
                 }
             }
             
@@ -69,7 +76,14 @@ Rectangle {
                     }
                     
                     if (videoController) {
-                        videoController.handleTouch(mouse.x, mouse.y, "move")
+                        try {
+                            videoController.handleTouch(mouse.x, mouse.y, "move")
+                            console.log("videoController.handleTouch invoked: move")
+                        } catch (e) {
+                            console.log("videoController.handleTouch error (move):", e)
+                        }
+                    } else {
+                        console.log("videoController not available onPositionChanged")
                     }
                 }
             }
@@ -81,7 +95,14 @@ Rectangle {
                 }
                 
                 if (videoController) {
-                    videoController.handleTouch(mouse.x, mouse.y, "up")
+                    try {
+                        videoController.handleTouch(mouse.x, mouse.y, "up")
+                        console.log("videoController.handleTouch invoked: up")
+                    } catch (e) {
+                        console.log("videoController.handleTouch error (up):", e)
+                    }
+                } else {
+                    console.log("videoController not available onReleased")
                 }
             }
         }

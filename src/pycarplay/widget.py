@@ -211,6 +211,21 @@ class CarPlayWidget(QWidget):
         except Exception as e:
             print(f"Error while wiring QML video provider: {e}")
         
+        # Ensure CarPlayVideo QML instance receives the controller property
+        try:
+            if root_obj is not None:
+                carplay_obj = root_obj.findChild(QObject, "carplayVideo")
+                if carplay_obj is not None:
+                    try:
+                        carplay_obj.setProperty("videoController", self.controller)
+                        print("Set carplayVideo.videoController from Python context")
+                    except Exception as e:
+                        print(f"Failed to set carplayVideo.videoController: {e}")
+                else:
+                    print("carplayVideo QML object not found to set controller property")
+        except Exception as e:
+            print(f"Error while setting carplayVideo controller: {e}")
+        
         # Add to layout
         layout.addWidget(self.qml_widget)
         

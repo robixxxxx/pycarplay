@@ -38,6 +38,7 @@ class VideoStreamController(QObject):
     # === Qt Signals ===
     videoSourceChanged = Signal(str)
     dongleStatusChanged = Signal(str)
+    scheduleReconnect = Signal(int)
     dongleConnected = Signal()
     dongleDisconnected = Signal()
     connectionFailed = Signal()  # Thread-safe signal for reconnect
@@ -88,6 +89,9 @@ class VideoStreamController(QObject):
         # Setup reconnect timer
         self._reconnect_timer.timeout.connect(self._attempt_reconnect)
         self._reconnect_timer.setSingleShot(True)
+
+        # Connect scheduleReconnect signal to slot that uses QTimer in the main thread
+        self.scheduleReconnect.connect(self._do_schedule_reconnect)
         
         # Setup connection failure handler (thread-safe)
         self.connectionFailed.connect(self._on_connection_failed)
@@ -267,7 +271,8 @@ class VideoStreamController(QObject):
         
         # Wait longer before reconnecting - phone needs time to reset CarPlay connection
         print("Waiting 15 seconds for phone to fully reset...")
-        QTimer.singleShot(15000, self.connectDongle)  # Reconnect after 15 seconds
+        # Schedule reconnect via main-thread-safe signal
+        self.scheduleReconnect.emit(15000)
     
     def _attempt_reconnect(self):
         """Attempt to reconnect to dongle after failure"""
@@ -280,7 +285,8 @@ class VideoStreamController(QObject):
         self.disconnectDongle()
         
         # Wait and reconnect
-        QTimer.singleShot(1000, self.connectDongle)
+        # Schedule reconnect via main-thread-safe signal
+        self.scheduleReconnect.emit(1000)
     
     def _reload_device(self):
         """Reload device connection to apply new settings"""
@@ -294,7 +300,8 @@ class VideoStreamController(QObject):
             self.disconnectDongle()
             
             # Wait and reconnect with new settings
-            QTimer.singleShot(2000, self.connectDongle)
+            # Schedule reconnect via main-thread-safe signal
+            self.scheduleReconnect.emit(2000)
         else:
             print("  Device not connected - settings will apply on next connection")
     
@@ -360,8 +367,16 @@ class VideoStreamController(QObject):
         print("Phone disconnected - restarting search for phone/dongle")
         self._reconnect_attempts = 0
 
-        # Start a reconnect attempt shortly to begin scanning/searching again
-        QTimer.singleShot(1000, self.connectDongle)
+        # Start a reconnect attempt shortly to begin scanning/searching again (main-thread-safe)
+        self.scheduleReconnect.emit(1000)
+
+    @Slot(int)
+    def _do_schedule_reconnect(self, delay_ms: int):
+        """Slot run in controller's thread (main thread) to schedule a QTimer singleShot safely."""
+        try:
+            QTimer.singleShot(int(delay_ms), self.connectDongle)
+        except Exception as e:
+            print(f"_do_schedule_reconnect failed: {e}")
     
     def _handle_video(self, message: VideoData):
         """Handle video data"""

@@ -111,7 +111,7 @@ Rectangle {
     // Settings Panel Component
     CarPlaySettings {
         id: settingsPanel
-        videoController: mainWindow.videoController
+        videoController: videoController
         
         onSettingsApplied: {
             settingsAppliedNotification.visible = true

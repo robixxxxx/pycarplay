@@ -55,15 +55,16 @@ Rectangle {
                     } catch (e) {
                         console.log("videoController.handleTouch error (down):", e)
                     }
-                } else if (typeof sendTouchNormalized === 'function') {
-                    // Fallback: send normalized coords (0.0-1.0)
+                } else if (typeof sendTouch === 'function') {
+                    // Fallback: send normalized coords (0.0-1.0) via direct sendTouch slot
                     var nx = mouse.x / width
                     var ny = mouse.y / height
                     try {
-                        sendTouchNormalized(nx, ny, "down")
-                        console.log("sendTouchNormalized invoked: down", nx, ny)
+                        // action code 14 = down
+                        sendTouch(nx, ny, 14)
+                        console.log("sendTouch invoked: down", nx, ny)
                     } catch (e) {
-                        console.log("sendTouchNormalized error (down):", e)
+                        console.log("sendTouch error (down):", e)
                     }
                 } else {
                     console.log("videoController not available onPressed")
@@ -92,14 +93,15 @@ Rectangle {
                         } catch (e) {
                             console.log("videoController.handleTouch error (move):", e)
                         }
-                    } else if (typeof sendTouchNormalized === 'function') {
+                    } else if (typeof sendTouch === 'function') {
                         var nxm = mouse.x / width
                         var nym = mouse.y / height
                         try {
-                            sendTouchNormalized(nxm, nym, "move")
-                            console.log("sendTouchNormalized invoked: move", nxm, nym)
+                            // action code 15 = move
+                            sendTouch(nxm, nym, 15)
+                            console.log("sendTouch invoked: move", nxm, nym)
                         } catch (e) {
-                            console.log("sendTouchNormalized error (move):", e)
+                            console.log("sendTouch error (move):", e)
                         }
                     } else {
                         console.log("videoController not available onPositionChanged")
@@ -120,14 +122,15 @@ Rectangle {
                     } catch (e) {
                         console.log("videoController.handleTouch error (up):", e)
                     }
-                } else if (typeof sendTouchNormalized === 'function') {
+                } else if (typeof sendTouch === 'function') {
                     var nxu = mouse.x / width
                     var nyu = mouse.y / height
                     try {
-                        sendTouchNormalized(nxu, nyu, "up")
-                        console.log("sendTouchNormalized invoked: up", nxu, nyu)
+                        // action code 16 = up
+                        sendTouch(nxu, nyu, 16)
+                        console.log("sendTouch invoked: up", nxu, nyu)
                     } catch (e) {
-                        console.log("sendTouchNormalized error (up):", e)
+                        console.log("sendTouch error (up):", e)
                     }
                 } else {
                     console.log("videoController not available onReleased")

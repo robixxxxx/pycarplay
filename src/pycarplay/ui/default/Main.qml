@@ -100,6 +100,7 @@ Rectangle {
     // Video Player Component
     CarPlayVideo {
         id: carplayVideo
+        objectName: "carplayVideo"
         anchors.fill: parent
         videoController: videoController
         showTouchIndicator: true

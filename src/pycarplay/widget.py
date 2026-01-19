@@ -167,6 +167,11 @@ class CarPlayWidget(QWidget):
             self.qml_widget.rootContext().setContextProperty("sendTouchNormalized", self.controller.handleTouchNormalized)
         except Exception:
             pass
+        # Also expose direct sendTouch slot (accepts normalized coords) to QML
+        try:
+            self.qml_widget.rootContext().setContextProperty("sendTouch", self.controller.sendTouch)
+        except Exception:
+            pass
         
         # Load QML (now videoController is available)
         self.qml_widget.setSource(QUrl.fromLocalFile(str(qml_path)))

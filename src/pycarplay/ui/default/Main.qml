@@ -5,13 +5,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../components"
-
-ApplicationWindow {
+Rectangle {
     id: mainWindow
-    visible: true
     width: videoController ? videoController.getVideoWidth() : 1280
     height: videoController ? videoController.getVideoHeight() : 720
-    title: "PyCarPlay - Video Stream"
     color: "#1e1e1e"
     
     // Update window size when video config changes

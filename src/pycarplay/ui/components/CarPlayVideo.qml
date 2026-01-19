@@ -20,11 +20,7 @@ Rectangle {
     VideoFrameProvider {
         id: videoDisplay
         anchors.fill: parent
-        
-    fillMode: videoContainer.fillMode === "fit" ? 
-          VideoOutput.PreserveAspectFit : 
-          VideoOutput.Stretch
-        
+        fillMode: videoContainer.fillMode // "fit" or "stretch"
         // Touch/Mouse handling
         MouseArea {
             id: mouseArea

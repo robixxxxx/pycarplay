@@ -21,6 +21,7 @@ Rectangle {
     // Video Display
     VideoFrameProvider {
         id: videoDisplay
+        objectName: "videoDisplay"
         anchors.fill: parent
         fillMode: videoContainer.fillMode // "fit" or "stretch"
         // Touch/Mouse handling

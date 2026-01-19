@@ -64,9 +64,13 @@ class VideoFrameProvider(QQuickPaintedItem):
             # Trigger repaint
             self.update()
             self.frameCountChanged.emit()
-            
-            if self._frame_count % 30 == 0:
-                print(f"VideoFrameProvider: Frame #{self._frame_count} displayed ({frame.width()}x{frame.height()})")
+            # Log first frame and then every 10 frames so we can verify frames are arriving
+            if self._frame_count == 1 or (self._frame_count % 10 == 0):
+                try:
+                    print(f"VideoFrameProvider: Frame #{self._frame_count} displayed ({frame.width()}x{frame.height()})")
+                except Exception:
+                    # Avoid logging errors from malformed frames
+                    print(f"VideoFrameProvider: Frame #{self._frame_count} displayed")
     
     def paint(self, painter: QPainter):
         """Paint the current frame"""

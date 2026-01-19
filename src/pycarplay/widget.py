@@ -8,7 +8,7 @@ It does NOT create its own window - it's meant to be added to existing layouts.
 import sys
 from pathlib import Path
 from typing import Optional
-from PySide6.QtCore import QUrl, QTimer, Signal, Slot
+from PySide6.QtCore import QUrl, QTimer, Signal, Slot, QObject
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
 from PySide6.QtQuickWidgets import QQuickWidget
@@ -165,12 +165,33 @@ class CarPlayWidget(QWidget):
         
         # Load QML (now videoController is available)
         self.qml_widget.setSource(QUrl.fromLocalFile(str(qml_path)))
-        
+
         # Check for QML errors
         if self.qml_widget.status() == QQuickWidget.Error:
             print("QML Errors:")
             for error in self.qml_widget.errors():
                 print(f"  {error.toString()}")
+
+        # Try to find the VideoFrameProvider instance created in QML and connect decoder to it.
+        try:
+            root_obj = self.qml_widget.rootObject()
+            if root_obj is not None:
+                video_display = root_obj.findChild(QObject, "videoDisplay")
+                # If found, connect the controller's decoder signal to the QML provider's slot
+                if video_display is not None:
+                    try:
+                        # Connect low-level decoder signal to the QML item's updateFrame slot
+                        if hasattr(self.controller, '_video_decoder'):
+                            self.controller._video_decoder.frameDecoded.connect(video_display.updateFrame)
+                            print("Connected decoder.frameDecoded -> QML videoDisplay.updateFrame")
+                    except Exception as e:
+                        print(f"Failed to connect decoder to QML videoDisplay: {e}")
+                else:
+                    print("QML videoDisplay not found; using Python VideoFrameProvider instance")
+            else:
+                print("QML root object is None after loading QML")
+        except Exception as e:
+            print(f"Error while wiring QML video provider: {e}")
         
         # Add to layout
         layout.addWidget(self.qml_widget)

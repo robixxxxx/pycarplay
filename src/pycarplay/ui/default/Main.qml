@@ -2,7 +2,7 @@
 // This file can be completely replaced by providing custom_qml_path in CarPlayConfig
 
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls 2.15
 import QtQuick.Layouts
 import "../components"
 Rectangle {

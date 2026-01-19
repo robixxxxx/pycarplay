@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
         # Create and add CarPlay widget
         self.carplay = CarPlayWidget()
         layout.addWidget(self.carplay)
-        
+        self.carplay.setVisible(True)
         # Set central widget
         self.setCentralWidget(central)
         

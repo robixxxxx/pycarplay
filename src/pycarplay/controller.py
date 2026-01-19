@@ -94,7 +94,13 @@ class VideoStreamController(QObject):
         self._reconnect_timer.setSingleShot(True)
         
         # === Signal Connections ===
+        # Connect decoder to provider (may be adjusted by UI to prefer QML provider)
         self._video_decoder.frameDecoded.connect(self._video_provider.updateFrame)
+        # Also log decoded frames for debugging
+        try:
+            self._video_decoder.frameDecoded.connect(self._log_frame_decoded)
+        except Exception:
+            pass
         self._video_decoder.tooManyErrors.connect(self._on_decoder_errors)
         self._microphone.micDataReady.connect(self._on_microphone_data)
     
@@ -114,6 +120,17 @@ class VideoStreamController(QObject):
     def startMediaLogging(self):
         """Start logging media data to file"""
         self._media_logger.start()
+
+    @Slot(object)
+    def _log_frame_decoded(self, frame):
+        """Debug helper: log when frames are decoded"""
+        try:
+            if hasattr(frame, 'width') and hasattr(frame, 'height'):
+                print(f"Controller: decoder emitted frame ({frame.width()}x{frame.height()})")
+            else:
+                print("Controller: decoder emitted a frame")
+        except Exception:
+            print("Controller: decoder emitted a frame (logging failed)")
     
     @Slot()
     def stopMediaLogging(self):

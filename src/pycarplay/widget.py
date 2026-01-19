@@ -184,6 +184,19 @@ class CarPlayWidget(QWidget):
                         if hasattr(self.controller, '_video_decoder'):
                             self.controller._video_decoder.frameDecoded.connect(video_display.updateFrame)
                             print("Connected decoder.frameDecoded -> QML videoDisplay.updateFrame")
+                            # Prefer QML provider: disconnect Python provider and point controller to QML provider
+                            try:
+                                if hasattr(self.controller, '_video_decoder') and hasattr(self, 'video_provider'):
+                                    self.controller._video_decoder.frameDecoded.disconnect(self.video_provider.updateFrame)
+                                    print("Disconnected decoder.frameDecoded -> Python VideoFrameProvider")
+                            except Exception:
+                                pass
+                            # Update controller reference to use QML-created provider
+                            try:
+                                self.controller._video_provider = video_display
+                                print("Controller video_provider set to QML videoDisplay")
+                            except Exception:
+                                pass
                     except Exception as e:
                         print(f"Failed to connect decoder to QML videoDisplay: {e}")
                 else:

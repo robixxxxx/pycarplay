@@ -1,10 +1,12 @@
 // CarPlay Video Display Component
 // This is the core video display component that can be customized or replaced
 
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
+import PyCarPlay 1.0
 
 Rectangle {
     id: videoContainer

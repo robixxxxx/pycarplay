@@ -6,8 +6,13 @@ This example shows how to embed PyCarPlay widget in a simple window.
 The widget is a COMPONENT, not a standalone window.
 """
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from pathlib import Path
 import sys
+
+# Allow running examples directly from repo root without installing package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 
 # Import from installed package
 from pycarplay import CarPlayWidget

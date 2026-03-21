@@ -15,9 +15,14 @@ The widget slots can be called from ANY source:
 - etc.
 """
 
+from pathlib import Path
+import sys
+
+# Allow running examples directly from repo root without installing package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer
-import sys
 
 from pycarplay import CarPlayWidget, CarPlayConfig
 

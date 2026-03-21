@@ -6,8 +6,13 @@ This example shows how to customize CarPlay settings
 and embed the widget in a window.
 """
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from pathlib import Path
 import sys
+
+# Allow running examples directly from repo root without installing package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
 
 from pycarplay import CarPlayWidget, CarPlayConfig
 

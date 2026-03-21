@@ -6,13 +6,18 @@ This example shows how to embed CarPlayWidget with control buttons.
 Demonstrates connecting buttons to CarPlay widget signals/slots.
 """
 
+from pathlib import Path
+import sys
+
+# Allow running examples directly from repo root without installing package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, 
     QVBoxLayout, QHBoxLayout, QPushButton, 
     QLabel, QSlider, QGroupBox
 )
 from PySide6.QtCore import Qt
-import sys
 
 from pycarplay import CarPlayWidget, CarPlayConfig
 

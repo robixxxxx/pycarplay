@@ -12,6 +12,13 @@ from typing import Any
 _LOGGER_CACHE: dict[str, logging.Logger] = {}
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _env_int(name: str, default: int) -> int:
     raw = os.getenv(name)
     if raw is None:
@@ -45,6 +52,26 @@ def _module_log_path(module_name: str) -> Path:
     return path
 
 
+def _is_file_logging_enabled() -> bool:
+    # Logging is opt-in unless enabled explicitly via startup attributes/env.
+    return _env_bool("PYCARPLAY_LOG_FILE_ENABLED", False)
+
+
+def _configure_logger_handlers(logger: logging.Logger, module_name: str) -> None:
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(funcName)s:%(lineno)d - %(message)s"
+    )
+
+    if _is_file_logging_enabled():
+        file_handler = logging.FileHandler(_module_log_path(module_name), encoding="utf-8")
+        file_handler.setLevel(_log_level())
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+
 def get_module_logger(module_name: str) -> logging.Logger:
     """Return a module-scoped logger writing to logs/modules/<module_path>.log."""
     cached = _LOGGER_CACHE.get(module_name)
@@ -55,24 +82,26 @@ def get_module_logger(module_name: str) -> logging.Logger:
     logger.setLevel(_log_level())
     logger.propagate = False
 
-    # Replace old handlers so env changes are respected across process restarts/tests.
-    for handler in list(logger.handlers):
-        logger.removeHandler(handler)
-
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(name)s %(funcName)s:%(lineno)d - %(message)s"
-    )
-
-    raw_file_enabled = os.getenv("PYCARPLAY_LOG_FILE_ENABLED")
-    file_enabled = True if raw_file_enabled is None else raw_file_enabled.strip().lower() in {"1", "true", "yes", "on"}
-    if file_enabled:
-        file_handler = logging.FileHandler(_module_log_path(module_name), encoding="utf-8")
-        file_handler.setLevel(_log_level())
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    # Replace handlers so current runtime config is applied.
+    _configure_logger_handlers(logger, module_name)
 
     _LOGGER_CACHE[module_name] = logger
     return logger
+
+
+def configure_logging(file_enabled: bool | None = None) -> None:
+    """Apply logging runtime options from startup attributes.
+
+    Args:
+        file_enabled: Whether per-module file logging should be enabled.
+            If None, current environment value is preserved.
+    """
+    if file_enabled is not None:
+        os.environ["PYCARPLAY_LOG_FILE_ENABLED"] = "1" if file_enabled else "0"
+
+    for module_name, logger in _LOGGER_CACHE.items():
+        logger.setLevel(_log_level())
+        _configure_logger_handlers(logger, module_name)
 
 
 def serialize_payload(payload: Any, max_bytes: int | None = None) -> str:

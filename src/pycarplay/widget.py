@@ -17,7 +17,7 @@ from PySide6.QtQuickWidgets import QQuickWidget
 from .config import CarPlayConfig, DEFAULT_CONFIG
 from .video.video_provider import VideoFrameProvider
 from .controller import VideoStreamController
-from .logging_utils import get_module_logger
+from .logging_utils import get_module_logger, configure_logging
 
 
 LOGGER = get_module_logger(__name__)
@@ -120,6 +120,9 @@ class CarPlayWidget(QWidget):
         # Override with custom QML path if provided
         if custom_qml_path:
             self.config.ui.custom_qml_path = custom_qml_path
+
+        # Configure logging before initializing runtime components.
+        configure_logging(file_enabled=self.config.logging.enabled)
         
         # Setup widget
         self._cleanup_started = False

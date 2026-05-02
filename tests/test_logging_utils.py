@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from pycarplay.logging_utils import (
+    configure_logging,
     get_module_logger,
     log_received_data,
     reset_logging_state_for_tests,
@@ -60,3 +61,37 @@ def test_log_received_data_handles_bytes_payload(tmp_path, monkeypatch):
     content = log_file.read_text(encoding="utf-8")
     assert "test ingress" in content
     assert "bytes(len=" in content
+
+
+def test_module_file_logging_is_disabled_by_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYCARPLAY_LOG_DIR", str(tmp_path / "modules"))
+    monkeypatch.delenv("PYCARPLAY_LOG_FILE_ENABLED", raising=False)
+
+    reset_logging_state_for_tests()
+
+    logger = get_module_logger("pycarplay.default.off")
+    logger.info("should not be written")
+
+    log_file = tmp_path / "modules" / "pycarplay" / "default" / "off.log"
+    assert not log_file.exists()
+
+
+def test_configure_logging_enables_file_handler(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYCARPLAY_LOG_DIR", str(tmp_path / "modules"))
+    monkeypatch.setenv("PYCARPLAY_LOG_LEVEL", "INFO")
+    monkeypatch.delenv("PYCARPLAY_LOG_FILE_ENABLED", raising=False)
+
+    reset_logging_state_for_tests()
+
+    logger = get_module_logger("pycarplay.runtime.switch")
+    assert len(logger.handlers) == 0
+
+    configure_logging(file_enabled=True)
+
+    logger.info("runtime enabled")
+    for handler in logger.handlers:
+        handler.flush()
+
+    log_file = tmp_path / "modules" / "pycarplay" / "runtime" / "switch.log"
+    assert log_file.exists()
+    assert "runtime enabled" in log_file.read_text(encoding="utf-8")

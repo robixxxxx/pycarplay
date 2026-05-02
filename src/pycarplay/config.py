@@ -52,6 +52,12 @@ class UIConfig:
     show_touch_indicator: bool = True
     show_media_info: bool = True
     show_navigation_info: bool = True
+
+
+@dataclass
+class LoggingConfig:
+    """Runtime logging configuration."""
+    enabled: bool = False
     
 
 @dataclass
@@ -78,6 +84,7 @@ class CarPlayConfig:
     audio: AudioConfig = field(default_factory=AudioConfig)
     dongle: DongleConfig = field(default_factory=DongleConfig)
     ui: UIConfig = field(default_factory=UIConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
     
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'CarPlayConfig':
@@ -94,12 +101,14 @@ class CarPlayConfig:
         audio_config = AudioConfig(**config_dict.get('audio', {}))
         dongle_config = DongleConfig(**config_dict.get('dongle', {}))
         ui_config = UIConfig(**config_dict.get('ui', {}))
+        logging_config = LoggingConfig(**config_dict.get('logging', {}))
         
         return cls(
             video=video_config,
             audio=audio_config,
             dongle=dongle_config,
-            ui=ui_config
+            ui=ui_config,
+            logging=logging_config,
         )
     
     @classmethod
@@ -151,6 +160,9 @@ class CarPlayConfig:
                 'show_touch_indicator': self.ui.show_touch_indicator,
                 'show_media_info': self.ui.show_media_info,
                 'show_navigation_info': self.ui.show_navigation_info,
+            },
+            'logging': {
+                'enabled': self.logging.enabled,
             }
         }
     

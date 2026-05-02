@@ -12,6 +12,7 @@ import sys
 # Allow running examples directly from repo root without installing package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 
 # Import from installed package
@@ -37,11 +38,17 @@ class MainWindow(QMainWindow):
         # Resize to match CarPlay video dimensions
         self.resize(1280, 720)
 
+    def closeEvent(self, event: QCloseEvent):
+        # Ensure CarPlay components stop before app process exits.
+        self.carplay.cleanup()
+        super().closeEvent(event)
+
 def main():
     app = QApplication(sys.argv)
     
     # Create main window with embedded CarPlay
     window = MainWindow()
+    app.aboutToQuit.connect(window.carplay.cleanup)
     window.show()
     
     sys.exit(app.exec())

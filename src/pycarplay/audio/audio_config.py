@@ -4,6 +4,11 @@ Audio Configuration for PyCarPlay
 Adjust these settings to fix audio stuttering/lag
 """
 
+from ..logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
+
 class AudioConfig:
     """Audio playback configuration"""
     
@@ -34,18 +39,16 @@ class AudioConfig:
         buffer_time = cls.BUFFER_SIZE_MS / 1000.0
         min_buffer_time = cls.MIN_BUFFER_FRAMES * 0.12  # ~120ms per frame
         
-        print("=" * 60)
-        print("Audio Configuration:")
-        print(f"  Sample Rate: {cls.SAMPLE_RATE} Hz")
-        print(f"  Channels: {cls.CHANNELS}")
-        print(f"  Buffer Size: {cls.BUFFER_SIZE_MS}ms ({buffer_time:.2f}s)")
-        print(f"  Min Buffer: {cls.MIN_BUFFER_FRAMES} frames (~{min_buffer_time:.2f}s)")
-        print(f"  Max Buffer: {cls.MAX_BUFFER_FRAMES} frames")
-        print("=" * 60)
-        print()
-        print("To reduce stuttering, try increasing:")
-        print("  - BUFFER_SIZE_MS (currently {})".format(cls.BUFFER_SIZE_MS))
-        print("  - MIN_BUFFER_FRAMES (currently {})".format(cls.MIN_BUFFER_FRAMES))
-        print()
-        print("Note: Higher values = smoother but more audio delay")
-        print("=" * 60)
+        LOGGER.info("=" * 60)
+        LOGGER.info("Audio Configuration:")
+        LOGGER.info("Sample Rate: %s Hz", cls.SAMPLE_RATE)
+        LOGGER.info("Channels: %s", cls.CHANNELS)
+        LOGGER.info("Buffer Size: %sms (%.2fs)", cls.BUFFER_SIZE_MS, buffer_time)
+        LOGGER.info("Min Buffer: %s frames (~%.2fs)", cls.MIN_BUFFER_FRAMES, min_buffer_time)
+        LOGGER.info("Max Buffer: %s frames", cls.MAX_BUFFER_FRAMES)
+        LOGGER.info("=" * 60)
+        LOGGER.info("To reduce stuttering, try increasing:")
+        LOGGER.info("- BUFFER_SIZE_MS (currently %s)", cls.BUFFER_SIZE_MS)
+        LOGGER.info("- MIN_BUFFER_FRAMES (currently %s)", cls.MIN_BUFFER_FRAMES)
+        LOGGER.info("Note: Higher values = smoother but more audio delay")
+        LOGGER.info("=" * 60)

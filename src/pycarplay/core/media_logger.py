@@ -9,6 +9,10 @@ for easy parsing.
 from datetime import datetime
 import json
 import os
+from ..logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class MediaLogger:
@@ -49,7 +53,7 @@ class MediaLogger:
         log_path = os.path.join(self.log_dir, f"carplay_media_{timestamp}.jsonl")
         self.log_file = open(log_path, 'w')
         self.enabled = True
-        print(f" Media logging started: {log_path}")
+        LOGGER.info("Media logging started: %s", log_path)
     
     def stop(self):
         """Stop logging and close file"""
@@ -57,7 +61,7 @@ class MediaLogger:
             self.log_file.close()
             self.log_file = None
         self.enabled = False
-        print(f" Media logging stopped")
+        LOGGER.info("Media logging stopped")
     
     def log_music(self, song, artist, album, play_time_ms, duration_ms):
         """Log music playback event

@@ -8,6 +8,10 @@ Converts to PCM16 format (16kHz mono) required by CarPlay.
 import sounddevice as sd
 import numpy as np
 from PySide6.QtCore import QObject, Signal
+from ..logging_utils import get_module_logger, log_received_data
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class MicrophoneInput(QObject):
@@ -36,17 +40,17 @@ class MicrophoneInput(QObject):
         self._frames_captured = 0
         
         # === Initialization ===
-        print(f" Microphone: {self.sample_rate}Hz, {self.channels}ch")
+        LOGGER.info("Microphone initialized: %dHz, %dch", self.sample_rate, self.channels)
         self._log_available_devices()
     
     def _log_available_devices(self):
         """Log available input devices for debugging"""
-        print(" Available input devices:")
+        LOGGER.info("Available input devices:")
         devices = sd.query_devices()
         for i, dev in enumerate(devices):
             if dev['max_input_channels'] > 0:
                 default = " (DEFAULT)" if i == sd.default.device[0] else ""
-                print(f"   [{i}] {dev['name']} ({dev['max_input_channels']} inputs){default}")
+            LOGGER.info("[%d] %s (%s inputs)%s", i, dev['name'], dev['max_input_channels'], default)
     
     def _audio_callback(self, indata, frames, time_info, status):
         """Process audio from sounddevice stream
@@ -54,11 +58,12 @@ class MicrophoneInput(QObject):
         Converts float32 audio to int16 PCM and emits via signal.
         """
         if status:
-            print(f'  Microphone status: {status}')
+            LOGGER.warning("Microphone status: %s", status)
         
         try:
             # Convert float32 (-1.0 to 1.0) to int16 PCM
             audio_int16 = (indata * 32767).astype(np.int16)
+            log_received_data(LOGGER, "Microphone captured frame", audio_int16.tobytes())
             
             # Flatten to 1D and convert to tuple for Qt signal
             audio_tuple = tuple(audio_int16.flatten())
@@ -69,10 +74,10 @@ class MicrophoneInput(QObject):
             # Statistics
             self._frames_captured += 1
             if self._frames_captured % 100 == 0:
-                print(f" Captured {self._frames_captured} frames")
+                LOGGER.debug("Captured %d frames", self._frames_captured)
                 
         except Exception as e:
-            print(f" Microphone callback error: {e}")
+            LOGGER.exception("Microphone callback error: %s", e)
             self.micError.emit(str(e))
     
     # === Public API ===
@@ -84,10 +89,10 @@ class MicrophoneInput(QObject):
         Audio is emitted via micDataReady signal.
         """
         if self._is_recording:
-            print("  Microphone already recording")
+            LOGGER.info("Microphone already recording")
             return
         
-        print(" Starting microphone...")
+        LOGGER.info("Starting microphone")
         
         try:
             # Create and start input stream
@@ -104,11 +109,11 @@ class MicrophoneInput(QObject):
             self._frames_captured = 0
             
             self.micStarted.emit()
-            print(f" Microphone recording: {self.sample_rate}Hz, {self.channels}ch")
+            LOGGER.info("Microphone recording: %dHz, %dch", self.sample_rate, self.channels)
             
         except Exception as e:
             error_msg = f"Failed to start microphone: {e}"
-            print(f" {error_msg}")
+            LOGGER.exception("%s", error_msg)
             self.micError.emit(error_msg)
     
     def stop(self):
@@ -128,11 +133,10 @@ class MicrophoneInput(QObject):
                 self._stream = None
             
             self.micStopped.emit()
-            print(f" Stopped (captured {self._frames_captured} frames)")
+            LOGGER.info("Microphone stopped (captured %d frames)", self._frames_captured)
             
         except Exception as e:
-            print(f" Error stopping microphone: {e}")
-            print(f"MicrophoneInput: Error stopping: {e}")
+            LOGGER.exception("Error stopping microphone: %s", e)
     
     def __del__(self):
         """Cleanup"""

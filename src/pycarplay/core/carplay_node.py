@@ -16,6 +16,7 @@ import threading
 from typing import Optional, Callable
 from enum import IntEnum
 from dataclasses import dataclass
+from ..logging_utils import get_module_logger, log_received_data
 
 from .dongle_driver import DongleDriver, DongleConfig, DriverStateError
 from ..protocol.messages import (
@@ -24,6 +25,9 @@ from ..protocol.messages import (
     WifiMacAddress, BluetoothMacAddress, EthernetMacAddress
 )
 from ..protocol.sendable import SendCommand, SendAudio, SendTouch, TouchAction
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class MessageType(IntEnum):
@@ -78,6 +82,7 @@ class CarplayNode:
     
     def _on_driver_message(self, message: Message):
         """Route messages from dongle driver to appropriate handlers"""
+        LOGGER.debug("Received driver message: %s", type(message).__name__)
         
         if isinstance(message, Plugged):
             self._handle_plugged(message)
@@ -123,11 +128,14 @@ class CarplayNode:
     def _handle_video(self, message: VideoData):
         """Handle video data"""
         self._clear_pair_timeout()
+        log_received_data(LOGGER, "Video message data", message.data)
         self._notify(MessageType.VIDEO, message)
     
     def _handle_audio(self, message: AudioData):
         """Handle audio data and commands"""
         self._clear_pair_timeout()
+        if message.data is not None:
+            log_received_data(LOGGER, "Audio message samples", message.data)
         
         # Handle audio commands (Siri, phone calls)
         if message.command is not None:
@@ -147,17 +155,17 @@ class CarplayNode:
     def _handle_audio_command(self, command: AudioCommand):
         """Handle audio commands and trigger microphone callback"""
         if command in (AudioCommand.AudioSiriStart, AudioCommand.AudioPhonecallStart):
-            print(f" Audio started: {command.name}")
+            LOGGER.info("Audio started command: %s", command.name)
             if self._microphone_callback:
                 self._microphone_callback('start', command)
             else:
-                print(f"  No microphone callback set")
+                LOGGER.warning("No microphone callback set")
         elif command in (AudioCommand.AudioSiriStop, AudioCommand.AudioPhonecallStop):
-            print(f" Audio stopped: {command.name}")
+            LOGGER.info("Audio stopped command: %s", command.name)
             if self._microphone_callback:
                 self._microphone_callback('stop', command)
             else:
-                print(f"  No microphone callback set")
+                LOGGER.warning("No microphone callback set")
     
     def _on_driver_failure(self):
         """Handle driver failure"""
@@ -167,7 +175,7 @@ class CarplayNode:
     
     def _start_frame_interval(self, interval_ms: int):
         """Start sending frame requests periodically"""
-        print(f"  Frame interval: {interval_ms}ms")
+        LOGGER.info("Frame interval: %dms", interval_ms)
         self._frame_interval_active = True
         
         def send_frame():
@@ -203,16 +211,16 @@ class CarplayNode:
         Returns:
             USB device object
         """
-        print(" Looking for USB device...")
+        LOGGER.info("Looking for USB device")
         device = None
         
         while device is None:
             device = self.dongle_driver.find_device()
             if device is None:
-                print(" No device found, retrying in 3s...")
+                LOGGER.info("No device found, retrying in 3s")
                 time.sleep(self.USB_WAIT_PERIOD_MS / 1000.0)
         
-        print(f" Found device: {device}")
+        LOGGER.info("Found device: %s", device)
         return device
     
     def start(self):
@@ -225,14 +233,14 @@ class CarplayNode:
             True on success
         """
         try:
-            print(" Initializing dongle driver...")
+            LOGGER.info("Initializing dongle driver")
             self.dongle_driver.initialise()
             
-            print(" Starting communication...")
+            LOGGER.info("Starting communication")
             self.dongle_driver.start(self.config)
             
             # Setup pair timeout (send wifiPair if no device connects)
-            print(f"  Setting up pair timeout ({self.PAIR_TIMEOUT_MS}ms)...")
+            LOGGER.info("Setting up pair timeout (%dms)", self.PAIR_TIMEOUT_MS)
             self._pair_timeout = threading.Timer(
                 self.PAIR_TIMEOUT_MS / 1000.0,
                 lambda: self.dongle_driver.send(SendCommand('wifiPair'))
@@ -240,13 +248,11 @@ class CarplayNode:
             self._pair_timeout.daemon = True
             self._pair_timeout.start()
             
-            print(" CarPlay started successfully")
+            LOGGER.info("CarPlay started successfully")
             return True
             
         except Exception as err:
-            print(f" Failed to start CarPlay: {err}")
-            import traceback
-            traceback.print_exc()
+            LOGGER.exception("Failed to start CarPlay: %s", err)
             
             # Notify failure
             self._notify(MessageType.FAILURE)
@@ -258,13 +264,13 @@ class CarplayNode:
         Cleans up timers and closes dongle connection.
         """
         try:
-            print(" Stopping CarPlay...")
+            LOGGER.info("Stopping CarPlay")
             self._clear_pair_timeout()
             self._clear_frame_interval()
             self.dongle_driver.close()
-            print(" CarPlay stopped")
+            LOGGER.info("CarPlay stopped")
         except Exception as err:
-            print(f" Error stopping CarPlay: {err}")
+            LOGGER.exception("Error stopping CarPlay: %s", err)
     
     def send_key(self, action: str):
         """Send key command to CarPlay
@@ -290,6 +296,7 @@ class CarplayNode:
         Args:
             audio_data: PCM audio bytes (16-bit, mono, 16kHz)
         """
+        log_received_data(LOGGER, "Microphone outgoing audio", audio_data)
         self.dongle_driver.send(SendAudio(audio_data))
 
 

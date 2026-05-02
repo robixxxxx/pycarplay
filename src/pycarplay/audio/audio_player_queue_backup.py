@@ -9,6 +9,10 @@ import sounddevice as sd
 from PySide6.QtCore import QObject, Signal, Slot
 from typing import Optional
 import threading
+from ..logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class AudioPlayer(QObject):
@@ -38,14 +42,14 @@ class AudioPlayer(QObject):
         self._frames_played = 0
         self._underruns = 0
         
-        print(f"AudioPlayer: Initialized (sounddevice with continuous buffer)")
+        LOGGER.info("AudioPlayer initialized (sounddevice with continuous buffer)")
     
     def _audio_callback(self, outdata, frames, time_info, status):
         """Callback for sounddevice stream"""
         if status.output_underflow:
             self._underruns += 1
             if self._underruns % 10 == 0:
-                print(f'AudioPlayer: Buffer underrun #{self._underruns}')
+                LOGGER.warning("AudioPlayer buffer underrun #%d", self._underruns)
         
         with self._buffer_lock:
             available = len(self._buffer)
@@ -82,11 +86,11 @@ class AudioPlayer(QObject):
             self._is_playing = True
             
             self.audioStarted.emit()
-            print(f"AudioPlayer: Started ({self.sample_rate}Hz, {self.channels}ch, latency=200ms)")
+            LOGGER.info("AudioPlayer started (%dHz, %dch, latency=200ms)", self.sample_rate, self.channels)
             
         except Exception as e:
             error_msg = f"Failed to start audio: {e}"
-            print(f"AudioPlayer: {error_msg}")
+            LOGGER.exception("AudioPlayer: %s", error_msg)
             self.audioError.emit(error_msg)
     
     def stop(self):
@@ -104,10 +108,10 @@ class AudioPlayer(QObject):
                 self._buffer = np.zeros((0, self.channels), dtype=np.int16)
             
             self.audioStopped.emit()
-            print(f"AudioPlayer: Stopped (played {self._frames_played} frames, underruns: {self._underruns})")
+            LOGGER.info("AudioPlayer stopped (played %d frames, underruns: %d)", self._frames_played, self._underruns)
             
         except Exception as e:
-            print(f"AudioPlayer: Error stopping: {e}")
+            LOGGER.exception("AudioPlayer: Error stopping: %s", e)
     
     @Slot(object)
     def playAudioData(self, audio_data: tuple):
@@ -138,7 +142,7 @@ class AudioPlayer(QObject):
                     # Keep only the newest data
                     self._buffer = self._buffer[-max_frames:]
                     if self._frames_played % 100 == 0:
-                        print(f"AudioPlayer: Buffer overflow, trimmed to {max_frames} frames")
+                        LOGGER.warning("AudioPlayer buffer overflow, trimmed to %d frames", max_frames)
             
             self._frames_played += 1
             
@@ -146,17 +150,15 @@ class AudioPlayer(QObject):
                 with self._buffer_lock:
                     buffer_size = len(self._buffer)
                 buffer_ms = (buffer_size / self.sample_rate) * 1000
-                print(f"AudioPlayer: Frame #{self._frames_played}, buffer: {buffer_size} frames ({buffer_ms:.0f}ms)")
+                LOGGER.debug("AudioPlayer frame #%d, buffer: %d frames (%.0fms)", self._frames_played, buffer_size, buffer_ms)
                     
         except Exception as e:
-            print(f"AudioPlayer: Error playing audio: {e}")
-            import traceback
-            traceback.print_exc()
+            LOGGER.exception("AudioPlayer: Error playing audio: %s", e)
     
     @Slot(float)
     def setVolume(self, volume: float):
         """Set volume (not implemented in sounddevice)"""
-        print(f"AudioPlayer: Volume control not available with sounddevice")
+        LOGGER.info("AudioPlayer volume control not available with sounddevice")
     
     def __del__(self):
         """Cleanup"""

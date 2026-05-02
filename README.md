@@ -225,6 +225,26 @@ config.dongle.auto_connect = False  # Manual control
 carplay = CarPlayWidget(config=config)
 ```
 
+## Per-Module Logging
+
+PyCarPlay now uses per-module log files under logs/modules.
+
+- Each Python module logger writes to its own file, for example:
+    - logs/modules/pycarplay/core/dongle_driver.log
+    - logs/modules/pycarplay/audio/audio_player.log
+    - logs/modules/pycarplay/protocol/messages.log
+- Log format includes timestamp, level, module, function, and line number.
+- Key ingress paths (USB/message/audio/video/microphone/protocol parsing) log received data and processing flow.
+
+Environment variables:
+
+- PYCARPLAY_LOG_LEVEL: logging level (default: INFO)
+- PYCARPLAY_LOG_MAX_PAYLOAD_BYTES: max serialized payload size in logs (default: 2048)
+- PYCARPLAY_LOG_FILE_ENABLED: enable file logging (default: 1)
+- PYCARPLAY_LOG_DIR: base logs directory for module logs (default: logs/modules)
+
+Logging is file-only. Console handlers are not created by the logging utility.
+
 ## Examples
 
 - `examples/hardware_buttons.py` - Physical button integration (GPIO, serial, CAN)

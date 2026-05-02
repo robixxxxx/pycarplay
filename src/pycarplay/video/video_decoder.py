@@ -11,6 +11,10 @@ import numpy as np
 from PySide6.QtGui import QImage
 from PySide6.QtCore import QObject, Signal, QMutex, QMutexLocker
 from typing import Optional
+from ..logging_utils import get_module_logger, log_received_data
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class VideoDecoder(QObject):
@@ -54,9 +58,9 @@ class VideoDecoder(QObject):
         try:
             self.codec = av.CodecContext.create('h264', 'r')
             self.codec.thread_type = 'AUTO'
-            print(" H264 decoder initialized")
+            LOGGER.info("H264 decoder initialized")
         except Exception as e:
-            print(f" Failed to initialize H264 decoder: {e}")
+            LOGGER.exception("Failed to initialize H264 decoder: %s", e)
             raise
     
     # === Public API ===
@@ -75,6 +79,7 @@ class VideoDecoder(QObject):
         """
         with QMutexLocker(self._mutex):
             try:
+                log_received_data(LOGGER, "Video decoder ingress", h264_data)
                 # Decode H264 packet
                 packet = av.Packet(h264_data)
                 frames = self.codec.decode(packet)
@@ -89,7 +94,7 @@ class VideoDecoder(QObject):
                     # Log progress
                     self._frame_count += 1
                     if self._frame_count % 30 == 0:
-                        print(f" Decoded frame #{self._frame_count}: {qimage.width()}x{qimage.height()}")
+                        LOGGER.debug("Decoded frame #%d: %dx%d", self._frame_count, qimage.width(), qimage.height())
                     
                     return qimage
                 
@@ -137,9 +142,9 @@ class VideoDecoder(QObject):
         self._consecutive_errors += 1
         
         if self._consecutive_errors <= 5:
-            print(f" Error decoding frame: {error}")
+            LOGGER.warning("Error decoding frame: %s", error)
         elif self._consecutive_errors == self._max_consecutive_errors:
-            print(f" TOO MANY DECODE ERRORS ({self._consecutive_errors} in a row)")
+            LOGGER.error("TOO MANY DECODE ERRORS (%d in a row)", self._consecutive_errors)
             self.tooManyErrors.emit()
     
     def flush(self):
@@ -155,7 +160,7 @@ class VideoDecoder(QObject):
                     qimage = self._convert_frame_to_qimage(frame)
                     self.frameDecoded.emit(qimage)
         except Exception as e:
-            print(f" Error flushing decoder: {e}")
+            LOGGER.warning("Error flushing decoder: %s", e)
     
     def reset(self):
         """Reset decoder state
@@ -170,7 +175,7 @@ class VideoDecoder(QObject):
                 self._frame_count = 0
                 self._error_count = 0
                 self._consecutive_errors = 0
-                print(" Decoder reset")
+                LOGGER.info("Decoder reset")
             except Exception as e:
-                print(f" Error resetting decoder: {e}")
+                LOGGER.exception("Error resetting decoder: %s", e)
 

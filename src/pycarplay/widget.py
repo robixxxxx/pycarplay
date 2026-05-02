@@ -9,13 +9,18 @@ import sys
 from pathlib import Path
 from typing import Optional
 from PySide6.QtCore import QUrl, QTimer, Signal, Slot, QObject
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
 from PySide6.QtQuickWidgets import QQuickWidget
 
 from .config import CarPlayConfig, DEFAULT_CONFIG
 from .video.video_provider import VideoFrameProvider
 from .controller import VideoStreamController
+from .logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class CarPlayWidget(QWidget):
@@ -117,14 +122,27 @@ class CarPlayWidget(QWidget):
             self.config.ui.custom_qml_path = custom_qml_path
         
         # Setup widget
+        self._cleanup_started = False
+        self._cleanup_completed = False
         self._setup_ui()
         self._setup_controller()
         self._connect_signals()
+        self._connect_app_quit_hook()
         
         # Auto-connect if configured
         if self.config.dongle.auto_connect:
             # Delay to allow UI to fully load
             QTimer.singleShot(500, self.connect)
+
+    def _connect_app_quit_hook(self):
+        """Connect app quit hook so shutdown also runs on global quit."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        try:
+            app.aboutToQuit.connect(self.cleanup)
+        except Exception as e:
+            LOGGER.exception("Failed to connect aboutToQuit cleanup hook: %s", e)
     
     def _setup_ui(self):
         # Register VideoFrameProvider as a QML type (for QML instantiation)
@@ -509,6 +527,32 @@ class CarPlayWidget(QWidget):
     def disconnect_dongle(self):
         """Legacy method - use disconnect() instead"""
         self.disconnect()
+
+    @Slot()
+    def cleanup(self):
+        """Stop controller/background resources in an idempotent way."""
+        if self._cleanup_completed:
+            LOGGER.debug("Widget cleanup already completed")
+            return
+        if self._cleanup_started:
+            LOGGER.debug("Widget cleanup already in progress")
+            return
+
+        self._cleanup_started = True
+        LOGGER.info("Widget cleanup started")
+        try:
+            if getattr(self, "controller", None):
+                self.controller.shutdown()
+            LOGGER.info("Widget cleanup finished")
+        except Exception as e:
+            LOGGER.exception("Widget cleanup failed: %s", e)
+        finally:
+            self._cleanup_completed = True
+
+    def closeEvent(self, event: QCloseEvent):
+        """Handle window/widget close by shutting down CarPlay resources."""
+        self.cleanup()
+        super().closeEvent(event)
     
     def get_controller(self) -> VideoStreamController:
         """

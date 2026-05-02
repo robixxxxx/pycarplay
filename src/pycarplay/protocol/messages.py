@@ -8,6 +8,10 @@ import json
 from enum import IntEnum
 from typing import Optional, Union, Dict, Any
 from dataclasses import dataclass
+from ..logging_utils import get_module_logger, log_received_data
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class AudioCommand(IntEnum):
@@ -114,6 +118,7 @@ class MessageHeader:
     @classmethod
     def from_buffer(cls, buffer: bytes) -> 'MessageHeader':
         """Parse header from buffer"""
+        log_received_data(LOGGER, "Protocol header buffer", buffer)
         if len(buffer) != cls.DATA_LENGTH:
             raise HeaderBuildError(f"Invalid buffer size - Expecting 16, got {len(buffer)}")
         
@@ -135,7 +140,7 @@ class MessageHeader:
             msg_type = MessageType(msg_type_raw)
         except ValueError:
             # Unknown message type - create a placeholder
-            print(f"Warning: Unknown message type {msg_type_raw:#x}, skipping")
+            LOGGER.warning("Unknown message type %s, skipping", f"{msg_type_raw:#x}")
             raise ValueError(f"Unknown message type: {msg_type_raw:#x}")
         
         return cls(length, msg_type)
@@ -271,11 +276,11 @@ class Plugged(Message):
         if wifi_avail:
             self.phone_type = PhoneType(struct.unpack('<I', data[0:4])[0])
             self.wifi = struct.unpack('<I', data[4:8])[0]
-            print(f"WiFi available, phone type: {self.phone_type.name}, wifi: {self.wifi}")
+            LOGGER.info("WiFi available, phone type=%s, wifi=%s", self.phone_type.name, self.wifi)
         else:
             self.phone_type = PhoneType(struct.unpack('<I', data[0:4])[0])
             self.wifi = None
-            print(f"No WiFi available, phone type: {self.phone_type.name}")
+            LOGGER.info("No WiFi available, phone type=%s", self.phone_type.name)
 
 
 class Unplugged(Message):
@@ -290,6 +295,7 @@ class AudioData(Message):
     
     def __init__(self, header: MessageHeader, data: bytes):
         super().__init__(header)
+        log_received_data(LOGGER, "AudioData raw", data)
         self.decode_type = struct.unpack('<I', data[0:4])[0]
         self.volume = struct.unpack('<f', data[4:8])[0]
         self.audio_type = struct.unpack('<I', data[8:12])[0]
@@ -318,6 +324,7 @@ class VideoData(Message):
     
     def __init__(self, header: MessageHeader, data: bytes):
         super().__init__(header)
+        log_received_data(LOGGER, "VideoData raw", data)
         self.width = struct.unpack('<I', data[0:4])[0]
         self.height = struct.unpack('<I', data[4:8])[0]
         self.flags = struct.unpack('<I', data[8:12])[0]
@@ -331,6 +338,7 @@ class MediaData(Message):
     
     def __init__(self, header: MessageHeader, data: bytes):
         super().__init__(header)
+        log_received_data(LOGGER, "MediaData raw", data)
         media_type = struct.unpack('<I', data[0:4])[0]
         
         if media_type == MediaType.AlbumCover:
@@ -348,10 +356,10 @@ class MediaData(Message):
                     'media': json.loads(media_data.decode('utf-8'))
                 }
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                print(f"Error parsing media data: {e}")
+                LOGGER.warning("Error parsing media data: %s", e)
                 self.payload = None
         else:
-            print(f"Unexpected media type: {media_type}")
+            LOGGER.warning("Unexpected media type: %s", media_type)
             self.payload = None
 
 
@@ -377,7 +385,7 @@ class BoxInfo(Message):
         try:
             self.settings = json.loads(data.decode('utf-8'))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            print(f"Error parsing box info: {e}")
+            LOGGER.warning("Error parsing box info: %s", e)
             self.settings = {}
 
 
@@ -407,6 +415,7 @@ def create_message(header: MessageHeader, data: Optional[bytes] = None) -> Optio
         return None
     
     try:
+        log_received_data(LOGGER, f"create_message type={msg_type.name}", data or b"")
         # Map message types to classes
         if msg_type == MessageType.AudioData:
             return AudioData(header, data)
@@ -447,12 +456,15 @@ def create_message(header: MessageHeader, data: Optional[bytes] = None) -> Optio
         elif msg_type == MessageType.Phase:
             return Phase(header, data)
         else:
-            print(f"Unknown message type: {msg_type.name} ({msg_type:#x}), data length: {len(data) if data else 0}")
+            LOGGER.warning(
+                "Unknown message type: %s (%s), data length: %d",
+                msg_type.name,
+                f"{msg_type:#x}",
+                len(data) if data else 0,
+            )
             if data and len(data) > 0:
-                print(f"  Data preview: {data[:min(32, len(data))].hex()}")
+                LOGGER.debug("Data preview: %s", data[:min(32, len(data))].hex())
             return None
     except Exception as e:
-        print(f"Error creating message of type {msg_type.name}: {e}")
-        import traceback
-        traceback.print_exc()
+        LOGGER.exception("Error creating message of type %s: %s", msg_type.name, e)
         return None

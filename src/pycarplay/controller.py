@@ -5,6 +5,8 @@ Main controller connecting CarPlay dongle with QML UI.
 Handles video decoding, audio playback, microphone input, and media metadata.
 """
 import sys
+import time
+import threading
 from pathlib import Path
 from PySide6.QtCore import QUrl, QObject, Slot, Signal, Property, QTimer
 from PySide6.QtGui import QGuiApplication, QImage
@@ -13,13 +15,17 @@ from PySide6.QtQuick import QQuickItem
 
 from .core.carplay_node import CarplayNode, CarplayMessage, MessageType
 from .core.dongle_driver import DongleConfig, HandDriveType
-from .protocol.messages import VideoData, AudioData, Plugged, Unplugged, Opened, DECODE_TYPE_MAP
+from .protocol.messages import VideoData, AudioData, Plugged, Unplugged, Opened, DECODE_TYPE_MAP, AudioCommand
 from .video.video_decoder import VideoDecoder
 from .video.video_provider import VideoFrameProvider
 from .audio.audio_player import AudioPlayer
 from .core.media_logger import MediaLogger
 from .audio.microphone import MicrophoneInput
 from .config import CarPlayConfig, DEFAULT_CONFIG
+from .logging_utils import get_module_logger, log_received_data
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class VideoStreamController(QObject):
@@ -82,6 +88,23 @@ class VideoStreamController(QObject):
         self._max_reconnect_attempts = self._config.dongle.reconnect_max_attempts
         self._phone_connected = False
         self._pending_settings_reload = False
+        self._audio_format_candidate = None
+        self._audio_format_candidate_count = 0
+        self._audio_format_stability_frames = 3
+        self._audio_format_switch_cooldown_s = 0.35
+        self._audio_last_switch_ts = 0.0
+        self._audio_active_streams = {
+            "media": False,
+            "navi": False,
+            "phonecall": False,
+            "siri": False,
+            "alert": False,
+            "unknown": False,
+        }
+        self._last_audio_stream = "media"
+        self._shutdown_lock = threading.Lock()
+        self._shutdown_started = False
+        self._shutdown_completed = False
         
         # Load saved config (if exists, otherwise use config values)
         self._load_video_config()
@@ -130,11 +153,11 @@ class VideoStreamController(QObject):
         """Debug helper: log when frames are decoded"""
         try:
             if hasattr(frame, 'width') and hasattr(frame, 'height'):
-                print(f"Controller: decoder emitted frame ({frame.width()}x{frame.height()})")
+                LOGGER.debug("Decoder emitted frame (%dx%d)", frame.width(), frame.height())
             else:
-                print("Controller: decoder emitted a frame")
+                LOGGER.debug("Decoder emitted a frame")
         except Exception:
-            print("Controller: decoder emitted a frame (logging failed)")
+            LOGGER.debug("Decoder emitted a frame (logging failed)")
     
     @Slot()
     def stopMediaLogging(self):
@@ -210,11 +233,11 @@ class VideoStreamController(QObject):
             thread.start()
             
             self.dongleStatus = "Initializing..."
-            print("CarPlay connection initiated")
+            LOGGER.info("CarPlay connection initiated")
             
         except Exception as e:
             self.dongleStatus = f"Error: {str(e)}"
-            print(f"Failed to connect dongle: {e}")
+            LOGGER.exception("Failed to connect dongle: %s", e)
             import traceback
             traceback.print_exc()
     
@@ -222,9 +245,22 @@ class VideoStreamController(QObject):
     def disconnectDongle(self):
         """Disconnect from USB dongle"""
         try:
+            if self._reconnect_timer.isActive():
+                self._reconnect_timer.stop()
+
             # Stop audio playback
             if self._audio_player:
                 self._audio_player.stop()
+                self._audio_format_candidate = None
+                self._audio_format_candidate_count = 0
+                self._audio_last_switch_ts = 0.0
+                for stream in self._audio_active_streams:
+                    self._audio_active_streams[stream] = False
+                self._last_audio_stream = "media"
+
+            # Stop microphone capture
+            if self._microphone:
+                self._microphone.stop()
             
             # Reset video decoder
             if self._video_decoder:
@@ -239,22 +275,58 @@ class VideoStreamController(QObject):
             if self._carplay_node:
                 self._carplay_node.stop()
                 self._carplay_node = None
+
+            # Stop media logging if active
+            if self._media_logger:
+                self._media_logger.stop()
             
             self.dongleStatus = "Disconnected"
             self.dongleDisconnected.emit()
-            print("Dongle disconnected - video/audio reset")
+            LOGGER.info("Dongle disconnected - video/audio reset")
         except Exception as e:
-            print(f"Error disconnecting dongle: {e}")
+            LOGGER.exception("Error disconnecting dongle: %s", e)
+
+    @Slot()
+    def shutdown(self):
+        """Stop background activity and release resources safely.
+
+        This method is idempotent and safe to call multiple times from
+        window close events and application quit hooks.
+        """
+        with self._shutdown_lock:
+            if self._shutdown_completed:
+                LOGGER.debug("Controller shutdown already completed")
+                return
+            if self._shutdown_started:
+                LOGGER.debug("Controller shutdown already in progress")
+                return
+            self._shutdown_started = True
+
+        LOGGER.info("Controller shutdown started")
+        try:
+            if self._reconnect_timer.isActive():
+                self._reconnect_timer.stop()
+
+            self.disconnectDongle()
+            self._phone_connected = False
+            self._pending_settings_reload = False
+
+            LOGGER.info("Controller shutdown finished")
+        except Exception as e:
+            LOGGER.exception("Controller shutdown failed: %s", e)
+        finally:
+            with self._shutdown_lock:
+                self._shutdown_completed = True
     
     @Slot()
     def toggleAudio(self):
         """Toggle audio playback on/off"""
         if self._audio_player._is_playing:
             self._audio_player.stop()
-            print(" Audio muted")
+            LOGGER.info("Audio muted")
         else:
             self._audio_player.start()
-            print(" Audio unmuted")
+            LOGGER.info("Audio unmuted")
     
     @Slot(float)
     def setVolume(self, volume: float):
@@ -264,13 +336,13 @@ class VideoStreamController(QObject):
     
     def _on_decoder_errors(self):
         """Handle too many decoder errors - force reconnection with delay"""
-        print("Decoder errors detected - disconnecting to reset phone...")
+        LOGGER.warning("Decoder errors detected - disconnecting to reset phone")
         
         # Disconnect
         self.disconnectDongle()
         
         # Wait longer before reconnecting - phone needs time to reset CarPlay connection
-        print("Waiting 15 seconds for phone to fully reset...")
+        LOGGER.info("Waiting 15 seconds for phone to fully reset")
         # Schedule reconnect via main-thread-safe signal
         self.scheduleReconnect.emit(15000)
     
@@ -278,7 +350,7 @@ class VideoStreamController(QObject):
         """Attempt to reconnect to dongle after failure"""
         self._reconnect_attempts += 1
         
-        print(f"Reconnection attempt #{self._reconnect_attempts}...")
+        LOGGER.info("Reconnection attempt #%d", self._reconnect_attempts)
         self.dongleStatus = f"Reconnecting... (attempt {self._reconnect_attempts})"
         
         # Disconnect first
@@ -290,7 +362,7 @@ class VideoStreamController(QObject):
     
     def _reload_device(self):
         """Reload device connection to apply new settings"""
-        print("Reloading device with new settings...")
+        LOGGER.info("Reloading device with new settings")
         
         # Store current connection state
         was_connected = self._carplay_node is not None
@@ -303,10 +375,11 @@ class VideoStreamController(QObject):
             # Schedule reconnect via main-thread-safe signal
             self.scheduleReconnect.emit(2000)
         else:
-            print("  Device not connected - settings will apply on next connection")
+            LOGGER.info("Device not connected - settings will apply on next connection")
     
     def _on_carplay_message(self, msg: CarplayMessage):
         """Handle messages from CarPlay node"""
+        LOGGER.debug("Received CarplayMessage type=%s", msg.msg_type.name)
         
         if msg.msg_type == MessageType.PLUGGED:
             self._handle_plugged(msg.message)
@@ -380,6 +453,7 @@ class VideoStreamController(QObject):
     
     def _handle_video(self, message: VideoData):
         """Handle video data"""
+        log_received_data(LOGGER, "Controller video ingress", message.data)
         # Decode H264 frame
         self._video_decoder.decode_frame(message.data)
         
@@ -390,53 +464,174 @@ class VideoStreamController(QObject):
     def _handle_audio(self, message: AudioData):
         """Handle audio data and commands"""
         if message.data:
+            log_received_data(LOGGER, "Controller audio ingress", message.data)
+        if message.data:
             self._handle_audio_data(message)
         elif message.command:
             self._handle_audio_command(message)
         elif message.volume_duration:
-            print(f" Volume duration: {message.volume_duration}")
+            LOGGER.debug("Volume duration: %s", message.volume_duration)
     
     def _handle_audio_data(self, message: AudioData):
         """Handle audio PCM data"""
         try:
+            stream_type = self._classify_stream_for_audio_data(message)
+            fallback_frequency = self._audio_player.sample_rate or 48000
+            channels = 1 if stream_type in ("siri", "phonecall") else 2
+            frequency = fallback_frequency
+
             # Update sample rate if needed
             if message.decode_type in DECODE_TYPE_MAP:
                 audio_format = DECODE_TYPE_MAP[message.decode_type]
-                channels = 1 if self._siri_mode else 2
-                self._audio_player.setSampleRate(audio_format.frequency, channels)
+                frequency = audio_format.frequency
+                self._maybe_apply_audio_format(frequency, channels)
+            else:
+                # Keep playback alive even for unknown codec metadata noise.
+                self._maybe_apply_audio_format(fallback_frequency, channels)
+                LOGGER.warning(
+                    f" Unknown audio decode_type: {message.decode_type}, "
+                    f"using fallback {fallback_frequency}Hz/{channels}ch"
+                )
             
-            # Play audio
-            self._audio_player.playAudioData(message.data)
+            # Play audio on stream-specific ring buffer.
+            self._audio_player.playAudioData(message.data, stream_type=stream_type)
             self.audioReceived.emit(len(message.data))
+
+            if self._audio_player._frames_received <= 5 or self._audio_player._frames_received % 400 == 0:
+                LOGGER.info(
+                    "Audio route: stream=%s audio_type=%s decode_type=%s active=%s",
+                    stream_type,
+                    message.audio_type,
+                    message.decode_type,
+                    sorted([name for name, is_active in self._audio_active_streams.items() if is_active]),
+                )
             
             # Log periodically
             if self._audio_player._frames_received <= 5 or self._audio_player._frames_received % 500 == 0:
-                print(f" Audio frame #{self._audio_player._frames_received}: "
-                      f"{len(message.data)} samples, {audio_format.frequency}Hz")
+                LOGGER.debug(
+                    "Audio frame #%d: %d samples, %dHz",
+                    self._audio_player._frames_received,
+                    len(message.data),
+                    self._audio_player.sample_rate,
+                )
         except Exception as e:
-            print(f" Audio error: {e}")
-            import traceback
-            traceback.print_exc()
+            LOGGER.exception("Audio error: %s", e)
+
+    def _maybe_apply_audio_format(self, frequency: int, channels: int):
+        """Apply format changes only after short stability to ignore transient metadata noise."""
+        requested = (int(frequency), int(channels))
+        current = (int(self._audio_player.sample_rate), int(self._audio_player.channels))
+
+        if requested == current:
+            self._audio_format_candidate = None
+            self._audio_format_candidate_count = 0
+            return
+
+        if self._audio_format_candidate != requested:
+            self._audio_format_candidate = requested
+            self._audio_format_candidate_count = 1
+        else:
+            self._audio_format_candidate_count += 1
+
+        required_frames = 1 if not self._audio_player._is_playing else self._audio_format_stability_frames
+        if self._audio_format_candidate_count < required_frames:
+            return
+
+        now = time.monotonic()
+        if self._audio_player._is_playing and (now - self._audio_last_switch_ts) < self._audio_format_switch_cooldown_s:
+            return
+
+        self._audio_player.setSampleRate(requested[0], requested[1])
+        self._audio_last_switch_ts = now
+        self._audio_format_candidate = None
+        self._audio_format_candidate_count = 0
+        LOGGER.info("Applied audio format %dHz/%dch", requested[0], requested[1])
     
     def _handle_audio_command(self, message: AudioData):
         """Handle audio commands (Siri, config)"""
-        from .protocol.messages import AudioCommand
         command_name = message.command.name if hasattr(message.command, 'name') else str(message.command)
-        print(f" Audio command: {command_name}")
+        LOGGER.info("Audio command: %s", command_name)
         
         # Show config panel on AudioInputConfig
         if message.command == AudioCommand.AudioInputConfig:
-            print("  AudioInputConfig - showing config panel")
+            LOGGER.info("AudioInputConfig - showing config panel")
             self.showConfigPanel.emit()
         # Toggle Siri mode (mono audio)
         elif message.command == AudioCommand.AudioSiriStart:
             self._siri_mode = True
+            self._audio_format_candidate = None
+            self._audio_format_candidate_count = 0
+            self._audio_last_switch_ts = 0.0
+            self._set_stream_active("siri", True)
         elif message.command == AudioCommand.AudioSiriStop:
             self._siri_mode = False
+            self._audio_format_candidate = None
+            self._audio_format_candidate_count = 0
+            self._audio_last_switch_ts = 0.0
+            self._set_stream_active("siri", False)
+        elif message.command == AudioCommand.AudioMediaStart:
+            self._set_stream_active("media", True)
+        elif message.command == AudioCommand.AudioMediaStop:
+            self._set_stream_active("media", False)
+        elif message.command == AudioCommand.AudioNaviStart:
+            self._set_stream_active("navi", True)
+        elif message.command == AudioCommand.AudioNaviStop:
+            self._set_stream_active("navi", False)
+        elif message.command == AudioCommand.AudioPhonecallStart:
+            self._set_stream_active("phonecall", True)
+        elif message.command == AudioCommand.AudioPhonecallStop:
+            self._set_stream_active("phonecall", False)
+        elif message.command == AudioCommand.AudioAlertStart:
+            self._set_stream_active("alert", True)
+        elif message.command == AudioCommand.AudioAlertStop:
+            self._set_stream_active("alert", False)
+
+    def _set_stream_active(self, stream: str, active: bool):
+        stream_name = str(stream).lower().strip()
+        if stream_name not in self._audio_active_streams:
+            stream_name = "unknown"
+
+        self._audio_active_streams[stream_name] = bool(active)
+        if active:
+            self._last_audio_stream = stream_name
+
+        if self._audio_player:
+            self._audio_player.setStreamActive(stream_name, bool(active))
+
+        LOGGER.info(
+            "Audio stream active update: %s=%s active=%s",
+            stream_name,
+            active,
+            sorted([name for name, is_active in self._audio_active_streams.items() if is_active]),
+        )
+
+    def _classify_stream_for_audio_data(self, message: AudioData) -> str:
+        # Prefer explicit metadata when available.
+        by_audio_type = {
+            1: "media",
+            2: "phonecall",
+            3: "navi",
+            4: "siri",
+            5: "alert",
+        }
+        stream = by_audio_type.get(int(message.audio_type), "unknown")
+
+        # Fall back to currently active stream hints when metadata is ambiguous.
+        if stream == "unknown":
+            for candidate in ("siri", "phonecall", "navi", "alert", "media"):
+                if self._audio_active_streams.get(candidate, False):
+                    stream = candidate
+                    break
+
+        if stream == "unknown":
+            stream = self._last_audio_stream if self._last_audio_stream else "unknown"
+
+        self._last_audio_stream = stream
+        return stream
     
     def _handle_failure(self):
         """Handle communication failure - emit signal for thread-safe handling"""
-        print(" CarPlay communication failed")
+        LOGGER.error("CarPlay communication failed")
         self.dongleStatus = "Failed"
         self.dongleDisconnected.emit()
         
@@ -446,7 +641,7 @@ class VideoStreamController(QObject):
     def _on_connection_failed(self):
         """Handle connection failure in main Qt thread (called via signal)"""
         delay = 5000  # Exponential backoff, max 30s
-        print(f" Will attempt reconnection #{self._reconnect_attempts + 1} in {delay/1000}s...")
+        LOGGER.info("Will attempt reconnection #%d in %ss", self._reconnect_attempts + 1, delay / 1000)
         self._reconnect_timer.start(delay)
     
     def _handle_command(self, message):
@@ -472,7 +667,7 @@ class VideoStreamController(QObject):
         media_type = message.payload.get('type')
         
         if media_type == 3:  # Album Cover
-            print(f" Album Cover received")
+            LOGGER.debug("Album Cover received")
         elif media_type == 1:  # Media Data
             media = message.payload.get('media', {})
             self._handle_music_metadata(media)
@@ -486,7 +681,7 @@ class VideoStreamController(QObject):
             song = media.get('MediaSongTitle', 'Unknown')
             artist = media.get('MediaArtist', 'Unknown')
             album = media.get('MediaAlbum', 'Unknown')
-            print(f" Now Playing: {song} - {artist} (Album: {album})")
+            LOGGER.info("Now Playing: %s - %s (Album: %s)", song, artist, album)
             
             self.currentSong = song
             self.currentArtist = f"{artist} • {album}"
@@ -500,7 +695,7 @@ class VideoStreamController(QObject):
             play_time_sec = media.get('MediaSongPlayTime', 0) / 1000
             duration_sec = media.get('MediaSongDuration', 0) / 1000
             if int(play_time_sec) % 10 == 0:
-                print(f"  Playback: {play_time_sec:.1f}s / {duration_sec:.1f}s")
+                LOGGER.debug("Playback: %.1fs / %.1fs", play_time_sec, duration_sec)
     
     def _handle_navigation_metadata(self, media: dict):
         """Handle navigation metadata"""
@@ -526,15 +721,15 @@ class VideoStreamController(QObject):
         
         # Log details
         if current_road:
-            print(f"  Current: {current_road}")
+            LOGGER.info("Current road: %s", current_road)
         if next_road:
-            print(f"  Next: {next_road}")
+            LOGGER.info("Next road: %s", next_road)
         if distance:
-            print(f"  Distance: {distance} {distance_unit}")
+            LOGGER.info("Distance: %s %s", distance, distance_unit)
         if maneuver:
-            print(f"  Maneuver: {maneuver}")
+            LOGGER.info("Maneuver: %s", maneuver)
         if eta:
-            print(f"  ETA: {eta}")
+            LOGGER.info("ETA: %s", eta)
         
         self._media_logger.log_navigation(current_road, next_road, distance, distance_unit, maneuver, eta)
     
@@ -543,7 +738,7 @@ class VideoStreamController(QObject):
         if 'PhoneCallStatus' in media:
             call_status = media.get('PhoneCallStatus', '')
             caller = media.get('PhoneCaller', 'Unknown')
-            print(f" Call: {call_status} - {caller}")
+            LOGGER.info("Call: %s - %s", call_status, caller)
             self._media_logger.log_phone_call(call_status, caller)
     
     def _on_microphone_data(self, audio_data):
@@ -555,6 +750,7 @@ class VideoStreamController(QObject):
             # Convert audio tuple to bytes
             import struct
             audio_bytes = struct.pack(f'{len(audio_data)}h', *audio_data)
+            log_received_data(LOGGER, "Microphone callback ingress", audio_bytes)
             self._carplay_node.send_audio(audio_bytes)
             
             # Log periodically
@@ -562,13 +758,13 @@ class VideoStreamController(QObject):
                 self._mic_data_count = 0
             self._mic_data_count += 1
             if self._mic_data_count <= 5 or self._mic_data_count % 100 == 0:
-                print(f" Microphone data sent #{self._mic_data_count}: {len(audio_bytes)} bytes")
+                LOGGER.debug("Microphone data sent #%d: %d bytes", self._mic_data_count, len(audio_bytes))
         except Exception as e:
-            print(f" Microphone error: {e}")
+            LOGGER.exception("Microphone error: %s", e)
     
     def _on_microphone_command(self, action: str, command):
         """Handle microphone start/stop commands from CarPlay"""
-        print(f" Command: {action} ({command.name})")
+        LOGGER.info("Microphone command: %s (%s)", action, command.name)
         if action == 'start':
             self.startMicrophone()
         elif action == 'stop':

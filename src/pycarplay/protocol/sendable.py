@@ -9,6 +9,10 @@ import time
 from typing import List, Tuple
 from enum import IntEnum
 from .messages import MessageType, MessageHeader
+from ..logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class CommandMapping(IntEnum):
@@ -219,7 +223,7 @@ class SendString(SendFile):
     
     def __init__(self, content: str, file: str):
         if len(content) > 16:
-            print("Warning: string too long, truncating to 16 characters")
+            LOGGER.warning("String too long, truncating to 16 characters")
             content = content[:16]
         message = content.encode('ascii')
         super().__init__(message, file)

@@ -11,10 +11,14 @@ from enum import IntEnum
 from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
 from ..protocol.messages import MessageHeader, HeaderBuildError, PhoneType
+from ..logging_utils import get_module_logger, log_received_data
 from ..protocol.sendable import (
     SendableMessage, SendNumber, SendBoolean, SendString,
     SendOpen, SendBoxSettings, SendCommand, HeartBeat, FileAddress
 )
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class HandDriveType(IntEnum):
@@ -100,7 +104,7 @@ class DongleDriver:
                 idProduct=device_info['product_id']
             )
             if device:
-                print(f" Found CarPlay dongle: {hex(device.idVendor)}:{hex(device.idProduct)}")
+                LOGGER.info("Found CarPlay dongle: %s:%s", hex(device.idVendor), hex(device.idProduct))
                 return device
         
         return None
@@ -108,7 +112,7 @@ class DongleDriver:
     def initialise(self, device: Optional[usb.core.Device] = None):
         """Initialize USB device"""
         if self.device:
-            print("Device already initialized")
+            LOGGER.info("Device already initialized")
             return
         
         if device is None:
@@ -119,11 +123,11 @@ class DongleDriver:
         
         try:
             self.device = device
-            print(f"Initializing device: {device}")
+            LOGGER.info("Initializing device: %s", device)
             
             # Detach kernel driver if necessary
             if self.device.is_kernel_driver_active(0):
-                print("Detaching kernel driver")
+                LOGGER.info("Detaching kernel driver")
                 self.device.detach_kernel_driver(0)
             
             # Set configuration
@@ -154,8 +158,8 @@ class DongleDriver:
             if self.out_ep is None:
                 raise DriverStateError("No OUT endpoint found")
             
-            print(f"IN Endpoint: {self.in_ep.bEndpointAddress:#x}")
-            print(f"OUT Endpoint: {self.out_ep.bEndpointAddress:#x}")
+            LOGGER.info("IN Endpoint: %s", f"{self.in_ep.bEndpointAddress:#x}")
+            LOGGER.info("OUT Endpoint: %s", f"{self.out_ep.bEndpointAddress:#x}")
             
         except Exception as err:
             self.close()
@@ -168,29 +172,30 @@ class DongleDriver:
         
         try:
             payload = message.serialise()
+            LOGGER.debug("Sending message type=%s payload_len=%d", getattr(message, "type", "unknown"), len(payload))
             bytes_written = self.out_ep.write(payload)
             return bytes_written == len(payload)
         except usb.core.USBError as err:
             error_str = str(err)
             # Check for device disconnection
             if "No such device" in error_str or "Entity not found" in error_str or err.errno == 19:
-                print(f" USB device disconnected during send!")
+                LOGGER.error("USB device disconnected during send")
                 self._running = False
                 for callback in self._failure_callbacks:
                     callback()
                 return False
-            print(f"Failure sending message to dongle: {err}")
+            LOGGER.exception("Failure sending message to dongle: %s", err)
             return False
         except Exception as err:
-            print(f"Failure sending message to dongle: {err}")
+            LOGGER.exception("Failure sending message to dongle: %s", err)
             return False
     
     def _read_loop(self):
         """Read loop for incoming messages"""
-        print("Starting read loop")
+        LOGGER.info("Starting read loop")
         while self._running and self.device:
             if self.error_count >= self.MAX_ERROR_COUNT:
-                print("Max error count reached, closing")
+                LOGGER.error("Max error count reached, closing")
                 self._running = False  # Set flag first to stop heartbeat
                 for callback in self._failure_callbacks:
                     callback()
@@ -199,13 +204,14 @@ class DongleDriver:
             try:
                 # Read header (16 bytes)
                 header_data = self.in_ep.read(MessageHeader.DATA_LENGTH, timeout=1000)
+                log_received_data(LOGGER, "USB header", bytes(header_data))
                 
                 # Try to parse header
                 try:
                     header = MessageHeader.from_buffer(bytes(header_data))
                 except ValueError as e:
                     # Unknown message type - skip this message
-                    print(f"Skipping message: {e}")
+                    LOGGER.warning("Skipping message: %s", e)
                     continue
                 
                 # Read extra data if needed
@@ -222,6 +228,7 @@ class DongleDriver:
                         chunks.append(bytes(chunk))
                         remaining -= len(chunk)
                     extra_data = b''.join(chunks)
+                    log_received_data(LOGGER, "USB payload", extra_data)
                 
                 # Convert to message object
                 message = header.to_message(extra_data)
@@ -229,6 +236,7 @@ class DongleDriver:
                 # Reset error count on successful read
                 if message:
                     self.error_count = 0
+                    LOGGER.debug("Message parsed: %s", type(message).__name__)
                 
                 # Emit message
                 if message:
@@ -242,25 +250,25 @@ class DongleDriver:
                 # Check for device disconnection errors
                 error_str = str(error)
                 if "No such device" in error_str or "Entity not found" in error_str or error.errno == 19:
-                    print(" USB device disconnected!")
+                    LOGGER.error("USB device disconnected")
                     self._running = False
                     for callback in self._failure_callbacks:
                         callback()
                     return
                 # Other USB errors - log and continue
-                print(f"USB error in read loop: {error}")
+                LOGGER.warning("USB error in read loop: %s", error)
                 self.error_count += 1
             except HeaderBuildError as error:
-                print(f"Error parsing header: {error}")
+                LOGGER.warning("Error parsing header: %s", error)
                 self.error_count += 1
             except OSError as error:
                 # Handle USB errors (Overflow, Pipe error, etc.)
                 error_str = str(error)
-                print(f"USB error in read loop: {error}")
+                LOGGER.warning("USB error in read loop: %s", error)
                 
                 if "Overflow" in error_str:
                     # USB buffer overflow - need to flush the endpoint
-                    print("USB Overflow detected - flushing endpoint buffer...")
+                    LOGGER.warning("USB Overflow detected - flushing endpoint buffer")
                     try:
                         # Try to drain the endpoint buffer
                         while True:
@@ -273,16 +281,16 @@ class DongleDriver:
                                 break
                         # Clear halt condition
                         usb.util.clear_halt(self.device, self.in_ep)
-                        print("Endpoint flushed and cleared")
+                        LOGGER.info("Endpoint flushed and cleared")
                         # Don't increment error count for overflow - it's recoverable
                         time.sleep(0.2)
                         continue
                     except Exception as e:
-                        print(f"Failed to clear endpoint: {e}")
+                        LOGGER.warning("Failed to clear endpoint: %s", e)
                 
                 if "Pipe error" in error_str:
                     # Pipe error - try to clear halt
-                    print("Pipe error - attempting endpoint recovery...")
+                    LOGGER.warning("Pipe error - attempting endpoint recovery")
                     try:
                         usb.util.clear_halt(self.device, self.in_ep)
                         time.sleep(0.1)
@@ -294,18 +302,18 @@ class DongleDriver:
                 error_str = str(error)
                 # Don't spam common non-critical errors
                 if "BLUETOOTH_ADDRESS" not in error_str and "BLUETOOTH" not in error_str:
-                    print(f"Error in read loop: {error}")
+                    LOGGER.exception("Error in read loop: %s", error)
                 self.error_count += 1
         
-        print("Read loop stopped")
+        LOGGER.info("Read loop stopped")
     
     def _heartbeat_loop(self):
         """Heartbeat loop"""
-        print("Starting heartbeat loop")
+        LOGGER.info("Starting heartbeat loop")
         while self._running:
             self.send(HeartBeat())
             time.sleep(2)
-        print("Heartbeat loop stopped")
+        LOGGER.info("Heartbeat loop stopped")
     
     def update_video_settings(self, width: int, height: int, dpi: int):
         """Update video resolution and DPI
@@ -327,7 +335,7 @@ class DongleDriver:
         self.send(SendNumber(dpi, FileAddress.DPI))
         self.send(SendBoxSettings(self.config))
         
-        print(f" Video settings sent to dongle: {width}x{height} @ {dpi} DPI")
+        LOGGER.info("Video settings sent to dongle: %dx%d @ %d DPI", width, height, dpi)
     
     def start(self, config: DongleConfig):
         """Start communication with device"""
@@ -341,7 +349,7 @@ class DongleDriver:
         self._running = True
         
         # Send initialization messages
-        print("Sending initialization messages")
+        LOGGER.info("Sending initialization messages")
         init_messages = [
             SendNumber(config.dpi, FileAddress.DPI),
             SendOpen(config),
@@ -380,11 +388,11 @@ class DongleDriver:
         """Send disconnect phone command to notify phone before closing"""
         try:
             from ..protocol.sendable import SendDisconnectPhone
-            print(" Sending disconnect command to phone...")
+            LOGGER.info("Sending disconnect command to phone")
             self.send(SendDisconnectPhone())
             time.sleep(0.5)  # Give phone time to process disconnect
         except Exception as e:
-            print(f"  Failed to send disconnect command: {e}")
+            LOGGER.warning("Failed to send disconnect command: %s", e)
     
     def close(self):
         """Close device connection"""

@@ -7,6 +7,10 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, Qt, QRectF
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtQuick import QQuickPaintedItem
 from typing import Optional
+from ..logging_utils import get_module_logger
+
+
+LOGGER = get_module_logger(__name__)
 
 
 class VideoFrameProvider(QQuickPaintedItem):
@@ -44,14 +48,14 @@ class VideoFrameProvider(QQuickPaintedItem):
             self._fill_mode = mode
             self.fillModeChanged.emit()
             self.update()  # Redraw with new mode
-            print(f"VideoFrameProvider: Fill mode changed to {mode}")
+            LOGGER.info("Fill mode changed to %s", mode)
     
     def _create_placeholder(self):
         """Create placeholder image"""
         self._current_frame = QImage(1280, 720, QImage.Format_RGB888)
         self._current_frame.fill(Qt.black)
         self.update()
-        print("VideoFrameProvider: Placeholder created")
+        LOGGER.info("Placeholder created")
     
     @Slot(QImage)
     def updateFrame(self, frame: QImage):
@@ -67,10 +71,10 @@ class VideoFrameProvider(QQuickPaintedItem):
             # Log first frame and then every 10 frames so we can verify frames are arriving
             if self._frame_count == 1 or (self._frame_count % 10 == 0):
                 try:
-                    print(f"VideoFrameProvider: Frame #{self._frame_count} displayed ({frame.width()}x{frame.height()})")
+                    LOGGER.debug("Frame #%d displayed (%dx%d)", self._frame_count, frame.width(), frame.height())
                 except Exception:
                     # Avoid logging errors from malformed frames
-                    print(f"VideoFrameProvider: Frame #{self._frame_count} displayed")
+                    LOGGER.debug("Frame #%d displayed", self._frame_count)
     
     def paint(self, painter: QPainter):
         """Paint the current frame"""

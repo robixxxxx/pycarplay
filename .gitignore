@@ -31,3 +31,7 @@ video_config.json
 *.ts
 *.tsx
 ts/
+
+# Tests
+tests/
+.pytest_cache/

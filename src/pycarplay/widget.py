@@ -7,7 +7,7 @@ It does NOT create its own window - it's meant to be added to existing layouts.
 
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable, Dict, Any
 from PySide6.QtCore import QUrl, QTimer, Signal, Slot, QObject
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
@@ -105,6 +105,8 @@ class CarPlayWidget(QWidget):
     currentArtistChanged = Signal(str)
     navigationInfoChanged = Signal(str)
     connectionFailed = Signal()
+    carplayConfigChanged = Signal(object)  # emits CarPlayConfig after settings are applied
+    customButtonActionTriggered = Signal(str)
     
     def __init__(
         self, 
@@ -116,13 +118,18 @@ class CarPlayWidget(QWidget):
         
         # Use provided config or default
         self.config = config if config is not None else DEFAULT_CONFIG
+        self._custom_button_actions: Dict[str, Callable[..., Any]] = {}
         
         # Override with custom QML path if provided
         if custom_qml_path:
             self.config.ui.custom_qml_path = custom_qml_path
 
         # Configure logging before initializing runtime components.
-        configure_logging(file_enabled=self.config.logging.enabled)
+        configure_logging(
+            file_enabled=self.config.logging.enabled,
+            console_enabled=self.config.logging.console_enabled,
+            enabled_modules=self.config.logging.enabled_modules,
+        )
         
         # Setup widget
         self._cleanup_started = False
@@ -249,17 +256,6 @@ class CarPlayWidget(QWidget):
                         print(f"Failed to set carplayVideo.videoController: {e}")
                 else:
                     print("carplayVideo QML object not found to set controller property")
-                # Also set controller on settings panel if present
-                try:
-                    settings_obj = root_obj.findChild(QObject, "settingsPanel")
-                    if settings_obj is not None:
-                        try:
-                            settings_obj.setProperty("videoController", self.controller)
-                            print("Set settingsPanel.videoController from Python context")
-                        except Exception as e:
-                            print(f"Failed to set settingsPanel.videoController: {e}")
-                except Exception:
-                    pass
         except Exception as e:
             print(f"Error while setting carplayVideo controller: {e}")
         
@@ -307,11 +303,54 @@ class CarPlayWidget(QWidget):
         self.controller.currentArtistChanged.connect(self.currentArtistChanged)
         self.controller.navigationInfoChanged.connect(self.navigationInfoChanged)
         self.controller.connectionFailed.connect(self.connectionFailed)
+        self.controller.videoConfigChanged.connect(self._on_video_config_changed)
+        self.controller.configurableButtonPressed.connect(self._on_configurable_button_pressed)
         
         # Track phone connection state
         self.controller.dongleConnected.connect(self._on_controller_connected)
         self.controller.dongleDisconnected.connect(self._on_controller_disconnected)
     
+    def _on_video_config_changed(self, width: int, height: int, dpi: int):
+        """Update internal config and emit carplayConfigChanged with full CarPlayConfig."""
+        self.config.video.width = width
+        self.config.video.height = height
+        self.config.video.dpi = dpi
+        self.carplayConfigChanged.emit(self.config)
+
+    def register_custom_button_action(self, action_name: str, callback: Callable[..., Any]) -> None:
+        """Register externally provided callback for config.ui.custom_button_action key."""
+        name = (action_name or "").strip()
+        if not name:
+            raise ValueError("action_name must be a non-empty string")
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        self._custom_button_actions[name] = callback
+        LOGGER.info("Registered custom button action: %s", name)
+
+    def unregister_custom_button_action(self, action_name: str) -> bool:
+        """Unregister callback by action key. Returns True if removed."""
+        name = (action_name or "").strip()
+        return self._custom_button_actions.pop(name, None) is not None
+
+    def trigger_custom_button_action(self, action_name: str, *args, **kwargs) -> bool:
+        """Trigger custom callback by action key. Returns True when callback is executed."""
+        name = (action_name or "").strip()
+        callback = self._custom_button_actions.get(name)
+        if callback is None:
+            LOGGER.warning("No custom button action registered for key: %s", name)
+            return False
+        try:
+            callback(*args, **kwargs)
+            self.customButtonActionTriggered.emit(name)
+            return True
+        except Exception as e:
+            LOGGER.exception("Custom button action '%s' failed: %s", name, e)
+            return False
+
+    def trigger_configured_custom_button_action(self, *args, **kwargs) -> bool:
+        """Trigger callback for currently configured action key from config.ui.custom_button_action."""
+        return self.trigger_custom_button_action(self.config.ui.custom_button_action, *args, **kwargs)
+
     def _on_controller_connected(self):
         """Handle when phone connects to dongle"""
         # Check if it's actually a phone connection (not just dongle)
@@ -322,6 +361,11 @@ class CarPlayWidget(QWidget):
     def _on_controller_disconnected(self):
         """Handle when phone disconnects"""
         self.phoneDisconnected.emit()
+
+    def _on_configurable_button_pressed(self, action_name: str):
+        """Dispatch configurable button press to external callback registry."""
+        LOGGER.info("Configurable button pressed (action=%s)", action_name)
+        self.trigger_custom_button_action(action_name)
     
     # === Public API - Status Methods ===
     
@@ -501,36 +545,6 @@ class CarPlayWidget(QWidget):
         """
         self.controller.sendKey("left")
     
-    @Slot()
-    def show_settings(self):
-        """
-        Show CarPlay settings panel
-        
-        This can be connected to a button's clicked signal:
-            settings_button.clicked.connect(carplay_widget.show_settings)
-        """
-        self.controller.showConfigPanel.emit()
-    
-    @Slot()
-    def hide_settings(self):
-        """
-        Hide CarPlay settings panel
-        
-        This can be connected to a button's clicked signal:
-            close_settings_button.clicked.connect(carplay_widget.hide_settings)
-        """
-        self.controller.hideConfigPanel.emit()
-    
-    # === Legacy methods for compatibility ===
-    
-    def connect_dongle(self):
-        """Legacy method - use connect() instead"""
-        self.connect()
-    
-    def disconnect_dongle(self):
-        """Legacy method - use disconnect() instead"""
-        self.disconnect()
-
     @Slot()
     def cleanup(self):
         """Stop controller/background resources in an idempotent way."""

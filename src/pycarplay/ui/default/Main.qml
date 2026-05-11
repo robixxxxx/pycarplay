@@ -7,13 +7,14 @@ import QtQuick.Layouts
 import "../components"
 Rectangle {
     id: mainWindow
-    width: videoController ? videoController.getVideoWidth() : 1280
-    height: videoController ? videoController.getVideoHeight() : 720
+    width: vc ? vc.getVideoWidth() : 1280
+    height: vc ? vc.getVideoHeight() : 720
     color: "#1e1e1e"
+    property var vc: videoController
     
     // Update window size when video config changes
     Connections {
-        target: videoController
+        target: mainWindow.vc
         function onVideoConfigChanged(width, height, dpi) {
             mainWindow.width = width
             mainWindow.height = height
@@ -24,106 +25,54 @@ Rectangle {
     // Keyboard shortcuts for CarPlay navigation
     Shortcut {
         sequence: "Escape"
-        onActivated: videoController.sendKey("back")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("back")
     }
     
     Shortcut {
         sequence: "H"
-        onActivated: videoController.sendKey("home")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("home")
     }
     
     Shortcut {
         sequence: "Space"
-        onActivated: videoController.sendKey("playOrPause")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("playOrPause")
     }
     
     Shortcut {
         sequence: "Left"
-        onActivated: videoController.sendKey("left")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("left")
     }
     
     Shortcut {
         sequence: "Right"
-        onActivated: videoController.sendKey("right")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("right")
     }
     
     Shortcut {
         sequence: "Up"
-        onActivated: videoController.sendKey("up")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("up")
     }
     
     Shortcut {
         sequence: "Down"
-        onActivated: videoController.sendKey("down")
+        onActivated: if (mainWindow.vc) mainWindow.vc.sendKey("down")
     }
     
-    // Settings applied notification
-    Rectangle {
-        id: settingsAppliedNotification
-        anchors.top: parent.top
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.topMargin: 20
-        width: 400
-        height: 60
-        color: "#28a745"
-        radius: 8
-        visible: false
-        z: 2000
-        
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 15
-            spacing: 10
-            
-            Label {
-                text: "[OK]"
-                font.pixelSize: 18
-                color: "#ffffff"
-            }
-            
-            Label {
-                text: "Settings applied! Device reloading..."
-                font.pixelSize: 14
-                font.bold: true
-                color: "#ffffff"
-                Layout.fillWidth: true
-            }
-        }
-        
-        Timer {
-            id: settingsAppliedTimer
-            interval: 3000
-            onTriggered: settingsAppliedNotification.visible = false
-        }
-    }
-
     // Video Player Component
     CarPlayVideo {
         id: carplayVideo
         objectName: "carplayVideo"
-        anchors.fill: parent
-        videoController: videoController
+        anchors.fill: mainWindow
+        videoController: mainWindow.vc
         showTouchIndicator: true
         showMediaInfo: true
         showNavigationInfo: true
     }
     
-    // Settings Panel Component
-    CarPlaySettings {
-        id: settingsPanel
-        objectName: "settingsPanel"
-        videoController: videoController
-        
-        onSettingsApplied: {
-            settingsAppliedNotification.visible = true
-            settingsAppliedTimer.start()
-        }
-    }
-    
     // Help Dialog
     Rectangle {
         id: helpDialog
-        anchors.centerIn: parent
+        anchors.centerIn: mainWindow
         width: 400
         height: 350
         color: "#2d2d2d"
@@ -148,7 +97,7 @@ Rectangle {
             
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
                 color: "#444"
             }
             
@@ -173,7 +122,7 @@ Rectangle {
             
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
                 color: "#444"
             }
             
@@ -209,16 +158,4 @@ Rectangle {
         }
     }
     
-    // Connect signals from controller
-    Connections {
-        target: videoController
-        
-        function onShowConfigPanel() {
-            settingsPanel.visible = true
-        }
-        
-        function onHideConfigPanel() {
-            settingsPanel.visible = false
-        }
-    }
 }

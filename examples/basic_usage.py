@@ -17,6 +17,11 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 
 # Import from installed package
 from pycarplay import CarPlayWidget
+from config import config
+
+
+def log_custom_button_press() -> None:
+    print("[CustomButton] Configurable button pressed")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -27,9 +32,11 @@ class MainWindow(QMainWindow):
         central = QWidget()
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
+
         
         # Create and add CarPlay widget
-        self.carplay = CarPlayWidget()
+        self.carplay = CarPlayWidget(config=config)
+        self.carplay.register_custom_button_action("log_button_press", log_custom_button_press)
         layout.addWidget(self.carplay)
         self.carplay.setVisible(True)
         # Set central widget
@@ -37,6 +44,7 @@ class MainWindow(QMainWindow):
         
         # Resize to match CarPlay video dimensions
         self.resize(1280, 720)
+        
 
     def closeEvent(self, event: QCloseEvent):
         # Ensure CarPlay components stop before app process exits.

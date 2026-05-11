@@ -1,3 +1,2 @@
 module PyCarPlay.Components
 CarPlayVideo 1.0 CarPlayVideo.qml
-CarPlaySettings 1.0 CarPlaySettings.qml

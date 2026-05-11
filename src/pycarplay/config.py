@@ -6,7 +6,7 @@ Users can override default settings by creating their own config object.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 import json
 from .logging_utils import get_module_logger
@@ -27,7 +27,7 @@ class VideoConfig:
 @dataclass
 class AudioConfig:
     """Audio playback configuration"""
-    sample_rate: int = 48000
+    sample_rate: int = 44100
     channels: int = 2
     chunk_size: int = 4096
     
@@ -52,12 +52,18 @@ class UIConfig:
     show_touch_indicator: bool = True
     show_media_info: bool = True
     show_navigation_info: bool = True
+    waiting_connection_text: str = "Waiting for connection..."
+    custom_button_icon_path: Optional[str] = None
+    custom_button_label: str = "PyCarPlay"
+    custom_button_action: str = "home"  # built-in: home/siri; external: registered action key
 
 
 @dataclass
 class LoggingConfig:
     """Runtime logging configuration."""
     enabled: bool = False
+    console_enabled: bool = False
+    enabled_modules: List[str] = field(default_factory=list)
     
 
 @dataclass
@@ -160,9 +166,15 @@ class CarPlayConfig:
                 'show_touch_indicator': self.ui.show_touch_indicator,
                 'show_media_info': self.ui.show_media_info,
                 'show_navigation_info': self.ui.show_navigation_info,
+                'waiting_connection_text': self.ui.waiting_connection_text,
+                'custom_button_icon_path': self.ui.custom_button_icon_path,
+                'custom_button_label': self.ui.custom_button_label,
+                'custom_button_action': self.ui.custom_button_action,
             },
             'logging': {
                 'enabled': self.logging.enabled,
+                'console_enabled': self.logging.console_enabled,
+                'enabled_modules': self.logging.enabled_modules,
             }
         }
     

@@ -35,8 +35,8 @@ class AdaptiveAudioDriver:
         self._channels = 2
 
         self._default_prebuffer_seconds = 0.7
-        self._default_target_latency_seconds = 1.2
-        self._default_hard_latency_seconds = 2.6
+        self._default_target_latency_seconds = 1.0
+        self._default_hard_latency_seconds = 1.5
 
         self._last_input_ts: Optional[float] = None
         self._last_update_ts = time.monotonic()

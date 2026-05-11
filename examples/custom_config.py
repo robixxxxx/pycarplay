@@ -14,27 +14,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
 
-from pycarplay import CarPlayWidget, CarPlayConfig
+from pycarplay import CarPlayWidget
+from config import config
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        
-        # Create custom configuration
-        config = CarPlayConfig()
-        
-        # Video settings - larger resolution
-        config.video.width = 1920
-        config.video.height = 1080
-        config.video.dpi = 220
-        
-        # Dongle settings - manual connect
-        config.dongle.auto_connect = False
-        config.dongle.reconnect_max_attempts = 10
-        
-        # UI settings
-        config.ui.show_touch_indicator = True
-        config.ui.show_media_info = True
         
         # Create central widget with layout
         central = QWidget()

@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from pycarplay import CarPlayWidget, CarPlayConfig
+from pycarplay import CarPlayWidget
+from config import config
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -35,11 +36,6 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(central)
         
         # Left side - CarPlay widget
-        config = CarPlayConfig()
-        config.video.width = 1280
-        config.video.height = 720
-        config.dongle.auto_connect = True
-        
         self.carplay = CarPlayWidget(config=config)
         layout.addWidget(self.carplay, stretch=3)
         

@@ -53,8 +53,7 @@ class VideoStreamController(QObject):
     currentSongChanged = Signal(str)
     currentArtistChanged = Signal(str)
     navigationInfoChanged = Signal(str)
-    showConfigPanel = Signal()
-    hideConfigPanel = Signal()
+    configurableButtonPressed = Signal(str)
     videoConfigChanged = Signal(int, int, int)  # width, height, dpi
     
     def __init__(self, video_provider: VideoFrameProvider, config: CarPlayConfig = None):
@@ -83,6 +82,11 @@ class VideoStreamController(QObject):
             'height': self._config.video.height,
             'dpi': self._config.video.dpi
         }
+        self._carplay_icon_path = self._config.ui.custom_button_icon_path or str(
+            Path(__file__).parent / "assets" / "icons" / "logo.png"
+        )
+        self._carplay_icon_label = self._config.ui.custom_button_label or "PyCarPlay"
+        self._carplay_button_action = (self._config.ui.custom_button_action or "home").lower()
         self._reconnect_timer = QTimer()
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = self._config.dongle.reconnect_max_attempts
@@ -93,6 +97,8 @@ class VideoStreamController(QObject):
         self._audio_format_stability_frames = 3
         self._audio_format_switch_cooldown_s = 0.35
         self._audio_last_switch_ts = 0.0
+        self._voice_transition_ts = 0.0
+        self._voice_settings_guard_s = 1.5
         self._audio_active_streams = {
             "media": False,
             "navi": False,
@@ -414,9 +420,10 @@ class VideoStreamController(QObject):
         self.dongleStatus = f"Connected - {phone_type}"
         self.dongleConnected.emit()
         
-        # Send CarPlay icon and label
-        icon_path = Path(__file__).parent / "assets" / "icons" / "logo.png"
-        self.setCarPlayIcon(str(icon_path))
+        # Apply configurable button appearance/action when phone connects.
+        self.setCarPlayIcon(self._carplay_icon_path)
+        self.setCarPlayLabel(self._carplay_icon_label)
+        self.setCarPlayButtonAction(self._carplay_button_action)
         
         # If settings were changed while disconnected, reload device
         if self._pending_settings_reload:
@@ -477,20 +484,22 @@ class VideoStreamController(QObject):
         try:
             stream_type = self._classify_stream_for_audio_data(message)
             fallback_frequency = self._audio_player.sample_rate or 48000
-            channels = 1 if stream_type in ("siri", "phonecall") else 2
+            fallback_channels = 1 if stream_type in ("siri", "phonecall") else (self._audio_player.channels or 2)
+            channels = fallback_channels
             frequency = fallback_frequency
 
             # Update sample rate if needed
             if message.decode_type in DECODE_TYPE_MAP:
                 audio_format = DECODE_TYPE_MAP[message.decode_type]
                 frequency = audio_format.frequency
+                channels = audio_format.channel
                 self._maybe_apply_audio_format(frequency, channels)
             else:
                 # Keep playback alive even for unknown codec metadata noise.
-                self._maybe_apply_audio_format(fallback_frequency, channels)
+                self._maybe_apply_audio_format(fallback_frequency, fallback_channels)
                 LOGGER.warning(
                     f" Unknown audio decode_type: {message.decode_type}, "
-                    f"using fallback {fallback_frequency}Hz/{channels}ch"
+                    f"using fallback {fallback_frequency}Hz/{fallback_channels}ch"
                 )
             
             # Play audio on stream-specific ring buffer.
@@ -549,22 +558,24 @@ class VideoStreamController(QObject):
     
     def _handle_audio_command(self, message: AudioData):
         """Handle audio commands (Siri, config)"""
-        command_name = message.command.name if hasattr(message.command, 'name') else str(message.command)
+        command_name = message.command.name if message.command and hasattr(message.command, 'name') else str(message.command)
         LOGGER.info("Audio command: %s", command_name)
         
-        # Show config panel on AudioInputConfig
+        # Legacy command; ignore to avoid accidental triggers (e.g. Siri path noise).
         if message.command == AudioCommand.AudioInputConfig:
-            LOGGER.info("AudioInputConfig - showing config panel")
-            self.showConfigPanel.emit()
+            LOGGER.info("Ignoring legacy AudioInputConfig command")
+            return
         # Toggle Siri mode (mono audio)
         elif message.command == AudioCommand.AudioSiriStart:
             self._siri_mode = True
+            self._voice_transition_ts = time.monotonic()
             self._audio_format_candidate = None
             self._audio_format_candidate_count = 0
             self._audio_last_switch_ts = 0.0
             self._set_stream_active("siri", True)
         elif message.command == AudioCommand.AudioSiriStop:
             self._siri_mode = False
+            self._voice_transition_ts = time.monotonic()
             self._audio_format_candidate = None
             self._audio_format_candidate_count = 0
             self._audio_last_switch_ts = 0.0
@@ -578,8 +589,10 @@ class VideoStreamController(QObject):
         elif message.command == AudioCommand.AudioNaviStop:
             self._set_stream_active("navi", False)
         elif message.command == AudioCommand.AudioPhonecallStart:
+            self._voice_transition_ts = time.monotonic()
             self._set_stream_active("phonecall", True)
         elif message.command == AudioCommand.AudioPhonecallStop:
+            self._voice_transition_ts = time.monotonic()
             self._set_stream_active("phonecall", False)
         elif message.command == AudioCommand.AudioAlertStart:
             self._set_stream_active("alert", True)
@@ -647,17 +660,16 @@ class VideoStreamController(QObject):
     def _handle_command(self, message):
         """Handle system commands"""
         command_value = message.value
-        
-        # Only log commands we actually handle
-        if command_value == 3:
-            print("  AudioInputConfig - showing config panel")
-            self.showConfigPanel.emit()
-        elif command_value == 1:
-            print("  Showing CarPlay config panel")
-            self.showConfigPanel.emit()
+
+        if command_value == 1:
+            LOGGER.info("Ignoring legacy show-config command (1)")
         elif command_value == 2:
-            print("  Hiding CarPlay config panel")
-            self.hideConfigPanel.emit()
+            LOGGER.info("Ignoring legacy hide-config command (2)")
+        elif command_value == 3:
+            LOGGER.info("Configurable button pressed (cmd=3), action=%s", self._carplay_button_action)
+            self.configurableButtonPressed.emit(self._carplay_button_action)
+        else:
+            LOGGER.debug("Unhandled system command value: %s", command_value)
     
     def _handle_media(self, message):
         """Handle media metadata (music, navigation, calls)"""
@@ -827,6 +839,26 @@ class VideoStreamController(QObject):
     def getVideoDpi(self):
         """Get current video DPI"""
         return self._video_config['dpi']
+
+    @Slot(result=str)
+    def getWaitingConnectionText(self):
+        """Get configurable waiting text shown while not connected."""
+        return self._config.ui.waiting_connection_text
+
+    @Slot(result=str)
+    def getCarPlayIconPath(self):
+        """Get current configurable button icon path."""
+        return self._carplay_icon_path
+
+    @Slot(result=str)
+    def getCarPlayLabel(self):
+        """Get current configurable button label."""
+        return self._carplay_icon_label
+
+    @Slot(result=str)
+    def getCarPlayButtonAction(self):
+        """Get current configurable button action (home/siri)."""
+        return self._carplay_button_action
     
     def apply_video_config(self, width: int, height: int, dpi: int):
         """
@@ -880,10 +912,12 @@ class VideoStreamController(QObject):
     @Slot(str)
     def setCarPlayLabel(self, label: str):
         """Set CarPlay icon label"""
+        self._carplay_icon_label = (label or "").strip() or "PyCarPlay"
+        self._config.ui.custom_button_label = self._carplay_icon_label
         if self._carplay_node:
             from .protocol.sendable import SendIconConfig
-            self._carplay_node.dongle_driver.send(SendIconConfig({'label': label}))
-            print(f"  CarPlay label set to: {label}")
+            self._carplay_node.dongle_driver.send(SendIconConfig({'label': self._carplay_icon_label}))
+            print(f"  CarPlay label set to: {self._carplay_icon_label}")
     
     @Slot(str)
     def setCarPlayIcon(self, icon_path: str):
@@ -894,6 +928,10 @@ class VideoStreamController(QObject):
         - logo_180_180.png for 180x180
         - logo_256_256.png for 256x256
         """
+        if icon_path:
+            self._carplay_icon_path = icon_path
+            self._config.ui.custom_button_icon_path = icon_path
+
         if not self._carplay_node:
             print(" CarPlay not connected")
             return
@@ -934,8 +972,8 @@ class VideoStreamController(QObject):
             
             time.sleep(0.3)  # Wait for files to be written
             
-            # Send configuration with label
-            self._carplay_node.dongle_driver.send(SendIconConfig({'label': 'PyCarPlay'}))
+            # Send configuration with currently configured label
+            self._carplay_node.dongle_driver.send(SendIconConfig({'label': self._carplay_icon_label}))
             time.sleep(0.2)
             
             # Request UI refresh
@@ -948,6 +986,31 @@ class VideoStreamController(QObject):
             print(f" Error setting icon: {e}")
             import traceback
             traceback.print_exc()
+
+    @Slot(str)
+    def setCarPlayButtonAction(self, action: str):
+        """Set configurable button action: 'home' or 'siri'."""
+        normalized = (action or "home").strip().lower()
+        self._carplay_button_action = normalized
+        self._config.ui.custom_button_action = normalized
+
+        if normalized not in {"home", "siri"}:
+            print(
+                f"  Stored custom button action key: {normalized} "
+                "(dongle supports only 'home'/'siri')"
+            )
+            return
+
+        if not self._carplay_node:
+            return
+
+        try:
+            from .protocol.sendable import SendLogoType, LogoType
+            logo_type = LogoType.HomeButton if normalized == "home" else LogoType.Siri
+            self._carplay_node.dongle_driver.send(SendLogoType(logo_type))
+            print(f"  CarPlay configurable button action set to: {normalized}")
+        except Exception as e:
+            print(f" Error setting configurable button action: {e}")
     
     @Slot(str)
     def sendKey(self, action: str):

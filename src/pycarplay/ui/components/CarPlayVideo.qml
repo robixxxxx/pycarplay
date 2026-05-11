@@ -17,17 +17,18 @@ Rectangle {
     property bool showMediaInfo: true
     property bool showNavigationInfo: true
     property string fillMode: "fit"  // "fit" or "stretch"
+    property var sendTouchFn: (typeof sendTouch === "function" ? sendTouch : null)
     
     // Video Display
     VideoFrameProvider {
         id: videoDisplay
         objectName: "videoDisplay"
-        anchors.fill: parent
+        anchors.fill: videoContainer
         fillMode: videoContainer.fillMode // "fit" or "stretch"
         // Touch/Mouse handling
         MouseArea {
             id: mouseArea
-            anchors.fill: parent
+            anchors.fill: videoDisplay
             hoverEnabled: true
             
             property real pressX: 0
@@ -36,32 +37,32 @@ Rectangle {
             
             onPressed: (mouse) => {
                 console.log("MouseArea.onPressed at", mouse.x, mouse.y)
-                console.log("videoController present:", !!videoController)
+                console.log("videoController present:", !!videoContainer.videoController)
                 pressX = mouse.x
                 pressY = mouse.y
                 isDragging = false
                 
                 // Show touch indicator
-                if (showTouchIndicator) {
+                if (videoContainer.showTouchIndicator) {
                     touchIndicator.x = mouse.x - touchIndicator.width / 2
                     touchIndicator.y = mouse.y - touchIndicator.height / 2
                     touchIndicator.visible = true
                 }
                 
-                if (videoController) {
+                if (videoContainer.videoController) {
                     try {
-                        videoController.handleTouch(mouse.x, mouse.y, "down")
+                        videoContainer.videoController.handleTouch(mouse.x, mouse.y, "down")
                         console.log("videoController.handleTouch invoked: down")
                     } catch (e) {
                         console.log("videoController.handleTouch error (down):", e)
                     }
-                } else if (typeof sendTouch === 'function') {
+                } else if (videoContainer.sendTouchFn) {
                     // Fallback: send normalized coords (0.0-1.0) via direct sendTouch slot
                     var nx = mouse.x / width
                     var ny = mouse.y / height
                     try {
                         // action code 14 = down
-                        sendTouch(nx, ny, 14)
+                        videoContainer.sendTouchFn(nx, ny, 14)
                         console.log("sendTouch invoked: down", nx, ny)
                     } catch (e) {
                         console.log("sendTouch error (down):", e)
@@ -81,24 +82,24 @@ Rectangle {
                         isDragging = true
                     }
                     
-                    if (isDragging && showTouchIndicator) {
+                    if (isDragging && videoContainer.showTouchIndicator) {
                         touchIndicator.x = mouse.x - touchIndicator.width / 2
                         touchIndicator.y = mouse.y - touchIndicator.height / 2
                     }
                     
-                    if (videoController) {
+                    if (videoContainer.videoController) {
                         try {
-                            videoController.handleTouch(mouse.x, mouse.y, "move")
+                            videoContainer.videoController.handleTouch(mouse.x, mouse.y, "move")
                             console.log("videoController.handleTouch invoked: move")
                         } catch (e) {
                             console.log("videoController.handleTouch error (move):", e)
                         }
-                    } else if (typeof sendTouch === 'function') {
+                    } else if (videoContainer.sendTouchFn) {
                         var nxm = mouse.x / width
                         var nym = mouse.y / height
                         try {
                             // action code 15 = move
-                            sendTouch(nxm, nym, 15)
+                            videoContainer.sendTouchFn(nxm, nym, 15)
                             console.log("sendTouch invoked: move", nxm, nym)
                         } catch (e) {
                             console.log("sendTouch error (move):", e)
@@ -111,23 +112,23 @@ Rectangle {
             
             onReleased: (mouse) => {
                 console.log("MouseArea.onReleased at", mouse.x, mouse.y)
-                if (showTouchIndicator) {
+                if (videoContainer.showTouchIndicator) {
                     touchIndicator.visible = false
                 }
                 
-                if (videoController) {
+                if (videoContainer.videoController) {
                     try {
-                        videoController.handleTouch(mouse.x, mouse.y, "up")
+                        videoContainer.videoController.handleTouch(mouse.x, mouse.y, "up")
                         console.log("videoController.handleTouch invoked: up")
                     } catch (e) {
                         console.log("videoController.handleTouch error (up):", e)
                     }
-                } else if (typeof sendTouch === 'function') {
+                } else if (videoContainer.sendTouchFn) {
                     var nxu = mouse.x / width
                     var nyu = mouse.y / height
                     try {
                         // action code 16 = up
-                        sendTouch(nxu, nyu, 16)
+                        videoContainer.sendTouchFn(nxu, nyu, 16)
                         console.log("sendTouch invoked: up", nxu, nyu)
                     } catch (e) {
                         console.log("sendTouch error (up):", e)
@@ -162,30 +163,24 @@ Rectangle {
     
     // Connection status overlay (when not connected)
     Rectangle {
-        anchors.fill: parent
+        id: connectionOverlay
+        anchors.fill: videoContainer
         color: "#1e1e1e"
-        visible: !!videoController && typeof videoController.dongleStatus === "string" && !videoController.dongleStatus.startsWith("Connected")
+        visible: !!videoContainer.videoController && typeof videoContainer.videoController.dongleStatus === "string" && !videoContainer.videoController.dongleStatus.startsWith("Connected")
         
         ColumnLayout {
             anchors.centerIn: parent
             spacing: 20
             
             Label {
-                text: ""
-                font.pixelSize: 64
-                color: "#444"
-                Layout.alignment: Qt.AlignHCenter
-            }
-            
-            Label {
-                text: videoController && typeof videoController.dongleStatus === "string" ? 
-                      (videoController.dongleStatus.startsWith("Connecting") || 
-                       videoController.dongleStatus.startsWith("Reconnecting") ?
+                text: videoContainer.videoController && typeof videoContainer.videoController.dongleStatus === "string" ? 
+                      (videoContainer.videoController.dongleStatus.startsWith("Connecting") || 
+                       videoContainer.videoController.dongleStatus.startsWith("Reconnecting") ?
                        "Łączenie z dongle..." : 
-                       videoController.dongleStatus.startsWith("Failed") ?
+                       videoContainer.videoController.dongleStatus.startsWith("Failed") ?
                        "Błąd połączenia" :
-                       "Czekam na połączenie...") :
-                      "Czekam na połączenie..."
+                       (videoContainer.videoController.getWaitingConnectionText ? videoContainer.videoController.getWaitingConnectionText() : "Czekam na połączenie...")) :
+                      (videoContainer.videoController && videoContainer.videoController.getWaitingConnectionText ? videoContainer.videoController.getWaitingConnectionText() : "Czekam na połączenie...")
                 font.pixelSize: 18
                 font.bold: true
                 color: "#ffffff"
@@ -193,7 +188,7 @@ Rectangle {
             }
             
             Label {
-                text: videoController && typeof videoController.dongleStatus === "string" ? videoController.dongleStatus : ""
+                text: videoContainer.videoController && typeof videoContainer.videoController.dongleStatus === "string" ? videoContainer.videoController.dongleStatus : ""
                 font.pixelSize: 12
                 color: "#888"
                 Layout.alignment: Qt.AlignHCenter
@@ -203,18 +198,19 @@ Rectangle {
     
     // Media Info Bar (Music & Navigation) - Overlay at bottom
     Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        id: mediaInfoBar
+        anchors.left: videoContainer.left
+        anchors.right: videoContainer.right
+        anchors.bottom: videoContainer.bottom
         height: 60
         color: "#aa2d2d2d"  // Semi-transparent
-        visible: !!videoController && (
-            (showMediaInfo && typeof videoController.currentSong === "string" && videoController.currentSong !== "") ||
-            (showNavigationInfo && typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== "")
+        visible: !!videoContainer.videoController && (
+            (videoContainer.showMediaInfo && typeof videoContainer.videoController.currentSong === "string" && videoContainer.videoController.currentSong !== "") ||
+            (videoContainer.showNavigationInfo && typeof videoContainer.videoController.navigationInfo === "string" && videoContainer.videoController.navigationInfo !== "")
         )
 
         RowLayout {
-            anchors.fill: parent
+            anchors.fill: mediaInfoBar
             anchors.margins: 10
             spacing: 15
 
@@ -222,14 +218,14 @@ Rectangle {
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                visible: showMediaInfo && !!videoController && typeof videoController.currentSong === "string" && videoController.currentSong !== ""
+                visible: videoContainer.showMediaInfo && !!videoContainer.videoController && typeof videoContainer.videoController.currentSong === "string" && videoContainer.videoController.currentSong !== ""
                 
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 2
                     
                     Label {
-                        text: (videoController && typeof videoController.currentSong === "string" ? videoController.currentSong : "")
+                        text: (videoContainer.videoController && typeof videoContainer.videoController.currentSong === "string" ? videoContainer.videoController.currentSong : "")
                         color: "#ffffff"
                         font.pixelSize: 14
                         font.bold: true
@@ -238,7 +234,7 @@ Rectangle {
                     }
                     
                     Label {
-                        text: (videoController && typeof videoController.currentArtist === "string" ? videoController.currentArtist : "")
+                        text: (videoContainer.videoController && typeof videoContainer.videoController.currentArtist === "string" ? videoContainer.videoController.currentArtist : "")
                         color: "#aaa"
                         font.pixelSize: 12
                         elide: Text.ElideRight
@@ -252,21 +248,21 @@ Rectangle {
                 Layout.preferredWidth: 1
                 Layout.preferredHeight: 40
                 color: "#444"
-                visible: showMediaInfo && showNavigationInfo &&
-                         !!videoController &&
-                         typeof videoController.currentSong === "string" && videoController.currentSong !== "" &&
-                         typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== ""
+                visible: videoContainer.showMediaInfo && videoContainer.showNavigationInfo &&
+                         !!videoContainer.videoController &&
+                         typeof videoContainer.videoController.currentSong === "string" && videoContainer.videoController.currentSong !== "" &&
+                         typeof videoContainer.videoController.navigationInfo === "string" && videoContainer.videoController.navigationInfo !== ""
             }
             
             // Navigation Info
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                visible: showNavigationInfo && !!videoController && typeof videoController.navigationInfo === "string" && videoController.navigationInfo !== ""
+                visible: videoContainer.showNavigationInfo && !!videoContainer.videoController && typeof videoContainer.videoController.navigationInfo === "string" && videoContainer.videoController.navigationInfo !== ""
                 
                 Label {
                     anchors.fill: parent
-                    text: "  " + (videoController && typeof videoController.navigationInfo === "string" ? videoController.navigationInfo : "")
+                    text: "  " + (videoContainer.videoController && typeof videoContainer.videoController.navigationInfo === "string" ? videoContainer.videoController.navigationInfo : "")
                     color: "#4CAF50"
                     font.pixelSize: 14
                     font.bold: true

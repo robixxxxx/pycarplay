@@ -24,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer
 
-from pycarplay import CarPlayWidget, CarPlayConfig
+from pycarplay import CarPlayWidget
+from config import config
 
 
 class HardwareButtonSimulator:
@@ -193,11 +194,6 @@ class CarSystemApp(QMainWindow):
         layout.addWidget(info)
         
         # CarPlay widget
-        config = CarPlayConfig()
-        config.video.width = 1280
-        config.video.height = 720
-        config.dongle.auto_connect = True
-        
         self.carplay = CarPlayWidget(config=config)
         layout.addWidget(self.carplay)
         

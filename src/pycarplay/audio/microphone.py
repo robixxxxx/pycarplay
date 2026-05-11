@@ -50,7 +50,7 @@ class MicrophoneInput(QObject):
         for i, dev in enumerate(devices):
             if dev['max_input_channels'] > 0:
                 default = " (DEFAULT)" if i == sd.default.device[0] else ""
-            LOGGER.info("[%d] %s (%s inputs)%s", i, dev['name'], dev['max_input_channels'], default)
+                LOGGER.info("[%d] %s (%s inputs)%s", i, dev['name'], dev['max_input_channels'], default)
     
     def _audio_callback(self, indata, frames, time_info, status):
         """Process audio from sounddevice stream

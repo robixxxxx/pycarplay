@@ -57,13 +57,43 @@ def _is_file_logging_enabled() -> bool:
     return _env_bool("PYCARPLAY_LOG_FILE_ENABLED", False)
 
 
+def _is_console_logging_enabled() -> bool:
+    return _env_bool("PYCARPLAY_LOG_CONSOLE_ENABLED", False)
+
+
+def _enabled_modules() -> set[str]:
+    raw = os.getenv("PYCARPLAY_LOG_ENABLED_MODULES", "")
+    if not raw.strip():
+        return set()
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def _is_module_enabled(module_name: str) -> bool:
+    allowed = _enabled_modules()
+    if not allowed:
+        return True
+    for prefix in allowed:
+        if module_name == prefix or module_name.startswith(prefix + "."):
+            return True
+    return False
+
+
 def _configure_logger_handlers(logger: logging.Logger, module_name: str) -> None:
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
 
+    if not _is_module_enabled(module_name):
+        return
+
     formatter = logging.Formatter(
         "%(asctime)s %(levelname)s %(name)s %(funcName)s:%(lineno)d - %(message)s"
     )
+
+    if _is_console_logging_enabled():
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(_log_level())
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
     if _is_file_logging_enabled():
         file_handler = logging.FileHandler(_module_log_path(module_name), encoding="utf-8")
@@ -89,15 +119,27 @@ def get_module_logger(module_name: str) -> logging.Logger:
     return logger
 
 
-def configure_logging(file_enabled: bool | None = None) -> None:
+def configure_logging(
+    file_enabled: bool | None = None,
+    console_enabled: bool | None = None,
+    enabled_modules: list[str] | None = None,
+) -> None:
     """Apply logging runtime options from startup attributes.
 
     Args:
         file_enabled: Whether per-module file logging should be enabled.
             If None, current environment value is preserved.
+        console_enabled: Whether logs should be emitted to stderr/stdout.
+            If None, current environment value is preserved.
+        enabled_modules: Optional module prefix allowlist. Empty list means all modules.
     """
     if file_enabled is not None:
         os.environ["PYCARPLAY_LOG_FILE_ENABLED"] = "1" if file_enabled else "0"
+    if console_enabled is not None:
+        os.environ["PYCARPLAY_LOG_CONSOLE_ENABLED"] = "1" if console_enabled else "0"
+    if enabled_modules is not None:
+        normalized = [name.strip() for name in enabled_modules if name and name.strip()]
+        os.environ["PYCARPLAY_LOG_ENABLED_MODULES"] = ",".join(normalized)
 
     for module_name, logger in _LOGGER_CACHE.items():
         logger.setLevel(_log_level())

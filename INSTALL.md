@@ -11,7 +11,7 @@ brew install libusb
 
 **Linux (Ubuntu/Debian):**
 ```bash
-sudo apt-get install libusb-1.0-0-dev
+sudo apt-get install libusb-1.0-0-dev libegl1 libgl1 libglx-mesa0 libfontconfig1 libqt5gui5 libqt5qml5 libqt5quick5 libpulse0 libpulse-mainloop-glib0 qml6-module-qtmultimedia qt6-multimedia-dev libqt6multimedia6 libqt6multimediaquick6 libpulse0 libegl1 libgl1 lib fontconfig1 libgbm-dev libdrm-dev libegl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev libinput-dev
 ```
 
 **Linux (Fedora/RHEL):**

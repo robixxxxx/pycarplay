@@ -53,12 +53,31 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    
+
     # Create main window with embedded CarPlay
     window = MainWindow()
     app.aboutToQuit.connect(window.carplay.cleanup)
-    window.show()
-    
+
+    # Optional: place window on a specific monitor.
+    # Usage: python basic_usage.py --screen 1  (index into QApplication.screens())
+    screen_index = None
+    if "--screen" in sys.argv:
+        idx = sys.argv.index("--screen")
+        if idx + 1 < len(sys.argv):
+            screen_index = int(sys.argv[idx + 1])
+
+    if screen_index is not None:
+        screens = app.screens()
+        if 0 <= screen_index < len(screens):
+            target_screen = screens[screen_index]
+            window.setGeometry(target_screen.geometry())
+            window.showFullScreen()
+        else:
+            print(f"[Screen] Index {screen_index} out of range (found {len(screens)} screen(s)); showing on default.")
+            window.show()
+    else:
+        window.show()
+
     sys.exit(app.exec())
 
 if __name__ == "__main__":

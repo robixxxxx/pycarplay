@@ -69,6 +69,7 @@ class VideoStreamController(QObject):
         self._media_logger = MediaLogger()
         self._microphone = MicrophoneInput()
         self._carplay_node = None
+        self._config.audio.set_playback_change_callback(self._on_audio_playback_enabled_changed)
         
         # === State Variables ===
         self._video_source = ""
@@ -136,6 +137,13 @@ class VideoStreamController(QObject):
             pass
         self._video_decoder.tooManyErrors.connect(self._on_decoder_errors)
         self._microphone.micDataReady.connect(self._on_microphone_data)
+
+    def _on_audio_playback_enabled_changed(self, enabled: bool):
+        if self._carplay_node:
+            self._carplay_node.set_audio_transfer_mode(enabled)
+            LOGGER.info("Audio playback routing changed: %s", "device" if enabled else "phone")
+        if not enabled and self._audio_player:
+            self._audio_player.stop()
     
     # === Qt Properties ===
         
@@ -225,7 +233,8 @@ class VideoStreamController(QObject):
                 box_name="pyCarPlay",
                 hand=HandDriveType.LHD,
                 wifi_type="5ghz",
-                mic_type="os"
+                mic_type="os",
+                audio_transfer_mode=not self._config.audio.playback_enabled,
             )
             
             # Create CarPlay node
@@ -470,7 +479,7 @@ class VideoStreamController(QObject):
     
     def _handle_audio(self, message: AudioData):
         """Handle audio data and commands"""
-        if message.data:
+        if message.data and self._config.audio.playback_enabled:
             log_received_data(LOGGER, "Controller audio ingress", message.data)
         if message.data:
             self._handle_audio_data(message)
@@ -481,6 +490,9 @@ class VideoStreamController(QObject):
     
     def _handle_audio_data(self, message: AudioData):
         """Handle audio PCM data"""
+        if not self._config.audio.playback_enabled:
+            return
+
         try:
             stream_type = self._classify_stream_for_audio_data(message)
             fallback_frequency = self._audio_player.sample_rate or 48000
@@ -1105,6 +1117,38 @@ class VideoStreamController(QObject):
             self.sendTouch(vx, vy, action_code)
         except Exception as e:
             print(f"handleTouch error: {e}")
+
+    @Slot("QVariantList")
+    def handleMultiTouch(self, touches):
+        """Map QML touch points to normalized video coordinates and send them."""
+        if not self._carplay_node or self._video_provider is None:
+            return
+
+        from .protocol.sendable import MultiTouchAction
+
+        action_map = {
+            "up": MultiTouchAction.Up,
+            "down": MultiTouchAction.Down,
+            "move": MultiTouchAction.Move,
+        }
+        width = self._video_config["width"]
+        height = self._video_config["height"]
+        mapped_touches = []
+
+        try:
+            for touch in touches:
+                x = float(touch["x"])
+                y = float(touch["y"])
+                coords = self._video_provider.mapToVideoCoordinates(x, y)
+                action = action_map[str(touch["action"]).lower()]
+                norm_x = max(0.0, min(1.0, float(coords[0]) / width))
+                norm_y = max(0.0, min(1.0, float(coords[1]) / height))
+                mapped_touches.append((norm_x, norm_y, action, int(touch["id"])))
+
+            if mapped_touches:
+                self._carplay_node.send_multi_touch(mapped_touches)
+        except Exception as e:
+            LOGGER.exception("handleMultiTouch error: %s", e)
 
 
 def main():

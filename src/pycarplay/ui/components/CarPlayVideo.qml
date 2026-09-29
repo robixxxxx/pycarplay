@@ -18,6 +18,47 @@ Rectangle {
     property bool showNavigationInfo: true
     property string fillMode: "fit"  // "fit" or "stretch"
     property var sendTouchFn: (typeof sendTouch === "function" ? sendTouch : null)
+    property var activeTouches: []
+    property bool multiTouchActive: false
+
+    function forwardTouches(points, action) {
+        var touchData = []
+        var active = activeTouches.slice(0)
+        for (var i = 0; i < points.length; ++i) {
+            var point = points[i]
+            var touchId = point.pointId
+            var existingIndex = active.findIndex(function (touch) { return touch.id === touchId })
+            if (action === "up") {
+                if (existingIndex !== -1)
+                    active.splice(existingIndex, 1)
+            } else {
+                var indicator = { id: touchId, x: point.x, y: point.y }
+                if (existingIndex === -1)
+                    active.push(indicator)
+                else
+                    active[existingIndex] = indicator
+            }
+            touchData.push({ x: point.x, y: point.y, id: touchId, action: action })
+        }
+        activeTouches = active
+
+        if (active.length > 1)
+            multiTouchActive = true
+
+        if (multiTouchActive && videoController && typeof videoController.handleMultiTouch === "function") {
+            videoController.handleMultiTouch(touchData)
+        } else if (videoController && typeof videoController.handleTouch === "function") {
+            for (var j = 0; j < touchData.length; ++j)
+                videoController.handleTouch(touchData[j].x, touchData[j].y, action)
+        } else if (sendTouchFn) {
+            var actionCode = action === "down" ? 14 : action === "up" ? 16 : 15
+            for (var k = 0; k < touchData.length; ++k)
+                sendTouchFn(touchData[k].x / width, touchData[k].y / height, actionCode)
+        }
+
+        if (multiTouchActive && active.length === 0)
+            multiTouchActive = false
+    }
     
     // Video Display
     VideoFrameProvider {
@@ -25,138 +66,43 @@ Rectangle {
         objectName: "videoDisplay"
         anchors.fill: videoContainer
         fillMode: videoContainer.fillMode // "fit" or "stretch"
-        // Touch/Mouse handling
-        MouseArea {
-            id: mouseArea
+        // Multi-touch input; mouse input is retained by MultiPointTouchArea.
+        MultiPointTouchArea {
+            id: multiTouchArea
             anchors.fill: videoDisplay
-            hoverEnabled: true
-            
-            property real pressX: 0
-            property real pressY: 0
-            property bool isDragging: false
-            
-            onPressed: (mouse) => {
-                console.log("MouseArea.onPressed at", mouse.x, mouse.y)
-                console.log("videoController present:", !!videoContainer.videoController)
-                pressX = mouse.x
-                pressY = mouse.y
-                isDragging = false
-                
-                // Show touch indicator
-                if (videoContainer.showTouchIndicator) {
-                    touchIndicator.x = mouse.x - touchIndicator.width / 2
-                    touchIndicator.y = mouse.y - touchIndicator.height / 2
-                    touchIndicator.visible = true
-                }
-                
-                if (videoContainer.videoController) {
-                    try {
-                        videoContainer.videoController.handleTouch(mouse.x, mouse.y, "down")
-                        console.log("videoController.handleTouch invoked: down")
-                    } catch (e) {
-                        console.log("videoController.handleTouch error (down):", e)
-                    }
-                } else if (videoContainer.sendTouchFn) {
-                    // Fallback: send normalized coords (0.0-1.0) via direct sendTouch slot
-                    var nx = mouse.x / width
-                    var ny = mouse.y / height
-                    try {
-                        // action code 14 = down
-                        videoContainer.sendTouchFn(nx, ny, 14)
-                        console.log("sendTouch invoked: down", nx, ny)
-                    } catch (e) {
-                        console.log("sendTouch error (down):", e)
-                    }
-                } else {
-                    console.log("videoController not available onPressed")
-                }
-            }
-            
-            onPositionChanged: (mouse) => {
-                if (pressed) console.log("MouseArea.onPositionChanged at", mouse.x, mouse.y)
-                if (pressed) {
-                    var dx = Math.abs(mouse.x - pressX)
-                    var dy = Math.abs(mouse.y - pressY)
-                    
-                    if (dx > 5 || dy > 5) {
-                        isDragging = true
-                    }
-                    
-                    if (isDragging && videoContainer.showTouchIndicator) {
-                        touchIndicator.x = mouse.x - touchIndicator.width / 2
-                        touchIndicator.y = mouse.y - touchIndicator.height / 2
-                    }
-                    
-                    if (videoContainer.videoController) {
-                        try {
-                            videoContainer.videoController.handleTouch(mouse.x, mouse.y, "move")
-                            console.log("videoController.handleTouch invoked: move")
-                        } catch (e) {
-                            console.log("videoController.handleTouch error (move):", e)
-                        }
-                    } else if (videoContainer.sendTouchFn) {
-                        var nxm = mouse.x / width
-                        var nym = mouse.y / height
-                        try {
-                            // action code 15 = move
-                            videoContainer.sendTouchFn(nxm, nym, 15)
-                            console.log("sendTouch invoked: move", nxm, nym)
-                        } catch (e) {
-                            console.log("sendTouch error (move):", e)
-                        }
-                    } else {
-                        console.log("videoController not available onPositionChanged")
-                    }
-                }
-            }
-            
-            onReleased: (mouse) => {
-                console.log("MouseArea.onReleased at", mouse.x, mouse.y)
-                if (videoContainer.showTouchIndicator) {
-                    touchIndicator.visible = false
-                }
-                
-                if (videoContainer.videoController) {
-                    try {
-                        videoContainer.videoController.handleTouch(mouse.x, mouse.y, "up")
-                        console.log("videoController.handleTouch invoked: up")
-                    } catch (e) {
-                        console.log("videoController.handleTouch error (up):", e)
-                    }
-                } else if (videoContainer.sendTouchFn) {
-                    var nxu = mouse.x / width
-                    var nyu = mouse.y / height
-                    try {
-                        // action code 16 = up
-                        videoContainer.sendTouchFn(nxu, nyu, 16)
-                        console.log("sendTouch invoked: up", nxu, nyu)
-                    } catch (e) {
-                        console.log("sendTouch error (up):", e)
-                    }
-                } else {
-                    console.log("videoController not available onReleased")
-                }
-            }
+            maximumTouchPoints: 5
+            mouseEnabled: true
+            touchPoints: [
+                TouchPoint {}, TouchPoint {}, TouchPoint {}, TouchPoint {}, TouchPoint {}
+            ]
+
+            onPressed: (points) => videoContainer.forwardTouches(points, "down")
+            onUpdated: (points) => videoContainer.forwardTouches(points, "move")
+            onReleased: (points) => videoContainer.forwardTouches(points, "up")
+            onCanceled: (points) => videoContainer.forwardTouches(points, "up")
         }
-        
-        // Touch indicator
-        Rectangle {
-            id: touchIndicator
-            width: 40
-            height: 40
-            radius: 20
-            color: "#4400aaff"
-            border.color: "#0078d4"
-            border.width: 2
-            visible: false
-            z: 100
-            
-            Rectangle {
-                anchors.centerIn: parent
-                width: 10
-                height: 10
-                radius: 5
-                color: "#0078d4"
+
+        Repeater {
+            model: videoContainer.showTouchIndicator ? videoContainer.activeTouches : []
+            delegate: Rectangle {
+                required property var modelData
+                x: modelData.x - width / 2
+                y: modelData.y - height / 2
+                width: 40
+                height: 40
+                radius: 20
+                color: "#4400aaff"
+                border.color: "#0078d4"
+                border.width: 2
+                z: 100
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 10
+                    height: 10
+                    radius: 5
+                    color: "#0078d4"
+                }
             }
         }
     }

@@ -2,9 +2,14 @@
 """
 Test script for message serialization/deserialization
 """
-from messages import MessageHeader, MessageType, VideoData, AudioData, Plugged, PhoneType
-from sendable import SendOpen, SendCommand, HeartBeat, SendNumber, FileAddress
-from dongle_driver import DongleConfig
+from pycarplay.protocol.messages import (
+    MessageHeader, MessageType, VideoData, AudioData, Plugged, PhoneType
+)
+from pycarplay.protocol.sendable import (
+    SendOpen, SendCommand, HeartBeat, SendNumber, FileAddress,
+    MultiTouchAction, SendMultiTouch,
+)
+from pycarplay.core.dongle_driver import DongleConfig
 
 
 def test_header():
@@ -114,6 +119,24 @@ def test_round_trip():
     assert header.type == MessageType.HeartBeat
     assert header.length == 0
     print(" Round-trip test passed\n")
+
+
+def test_multi_touch_serialization():
+    """Test multi-touch serialization preserves actions and touch IDs."""
+    import struct
+
+    message = SendMultiTouch([
+        (0.25, 0.75, MultiTouchAction.Down, 12),
+        (0.5, 0.125, MultiTouchAction.Move, 4),
+    ])
+    payload = message.get_payload()
+
+    assert message.type == MessageType.MultiTouch
+    assert struct.unpack("<ffII", payload[:16]) == (0.25, 0.75, 1, 12)
+    assert struct.unpack("<ffII", payload[16:]) == (0.5, 0.125, 2, 4)
+
+    legacy_message = SendMultiTouch([(0.5, 0.25, MultiTouchAction.Up)])
+    assert struct.unpack("<ffII", legacy_message.get_payload()) == (0.5, 0.25, 0, 0)
 
 
 if __name__ == "__main__":

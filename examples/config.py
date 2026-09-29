@@ -24,13 +24,15 @@ config = CarPlayConfig()
 # CarPlay render resolution.
 # These values tell iPhone/Android what display resolution is used.
 # Changing them typically requires reconnecting the phone.
-config.video.width  = 1280   # width in pixels | typical: 800, 1024, 1280, 1920
-config.video.height = 720    # height in pixels | typical: 480, 600, 720, 1080
+config.video.width  = 1024   # width in pixels | typical: 800, 1024, 1280, 1920
+config.video.height = 600    # height in pixels | typical: 480, 600, 720, 1080
 config.video.dpi    = 160    # display density (DPI) | typical: 72, 96, 120, 160, 220, 320
 config.video.fps    = 60     # target frames per second | typical: 30, 60
 
 # -- AUDIO -------------------------------------------------------------------
-# Audio stream parameters received from the phone.
+# Route audio through this device, or leave playback on the phone.
+config.audio.playback_enabled = True  # False = keep audio playback on the phone
+# Audio stream parameters received from the phone when playback_enabled is True.
 config.audio.sample_rate = 44100  # sample rate in Hz | 44100, 48000
 config.audio.channels    = 2      # channels: 1 = mono, 2 = stereo
 config.audio.chunk_size  = 2048   # audio buffer size in bytes | 1024, 2048, 4096, 8192
@@ -56,6 +58,7 @@ config.ui.background_color   = "#1e1e1e"        # background color when no video
 config.ui.show_touch_indicator  = True          # True = show touch circle indicator
 config.ui.show_media_info       = True          # True = show current song/artist info
 config.ui.show_navigation_info  = True          # True = show navigation instruction info
+config.ui.show_cursor            = False         # True = show cursor
 config.ui.waiting_connection_text = "Waiting for phone connection..."  # text shown while waiting for connection
 config.ui.custom_button_action    = "log_button_press"  # action key mapped in CUSTOM_BUTTON_ACTIONS
 

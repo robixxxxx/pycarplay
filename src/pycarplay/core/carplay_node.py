@@ -24,7 +24,9 @@ from ..protocol.messages import (
     Command, AudioCommand, PhoneType,
     WifiMacAddress, BluetoothMacAddress, EthernetMacAddress
 )
-from ..protocol.sendable import SendCommand, SendAudio, SendTouch, TouchAction
+from ..protocol.sendable import (
+    SendCommand, SendAudio, SendTouch, TouchAction, SendMultiTouch
+)
 
 
 LOGGER = get_module_logger(__name__)
@@ -289,6 +291,18 @@ class CarplayNode:
             action: Touch action (Down, Move, Up)
         """
         self.dongle_driver.send(SendTouch(x, y, action))
+
+    def send_multi_touch(self, touch_data):
+        """Send a multi-touch event containing normalized coordinates."""
+        self.dongle_driver.send(SendMultiTouch(touch_data))
+
+    def set_audio_transfer_mode(self, enabled: bool):
+        """Route phone audio to the host device or leave playback on the phone."""
+        self.config.audio_transfer_mode = not bool(enabled)
+        if not self.dongle_driver.device:
+            return False
+        command = "audioTransferOff" if enabled else "audioTransferOn"
+        return self.dongle_driver.send(SendCommand(command))
     
     def send_audio(self, audio_data: bytes):
         """Send microphone audio data to CarPlay

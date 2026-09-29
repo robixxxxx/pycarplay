@@ -162,12 +162,13 @@ class TouchItem:
 class SendMultiTouch(SendableMessageWithPayload):
     """Send multi-touch event"""
     
-    def __init__(self, touch_data: List[Tuple[float, float, MultiTouchAction]]):
+    def __init__(self, touch_data: List[Tuple]):
         super().__init__(MessageType.MultiTouch)
-        self.touches = [
-            TouchItem(x, y, action, index)
-            for index, (x, y, action) in enumerate(touch_data)
-        ]
+        self.touches = []
+        for index, touch in enumerate(touch_data):
+            x, y, action = touch[:3]
+            touch_id = touch[3] if len(touch) > 3 else index
+            self.touches.append(TouchItem(x, y, action, touch_id))
     
     def get_payload(self) -> bytes:
         return b''.join(touch.get_payload() for touch in self.touches)

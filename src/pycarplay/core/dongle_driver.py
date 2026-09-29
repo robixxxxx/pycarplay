@@ -45,7 +45,7 @@ class DongleConfig:
     night_mode: bool = False
     hand: HandDriveType = HandDriveType.LHD
     media_delay: int = 300
-    audio_transfer_mode: bool = False
+    audio_transfer_mode: bool = False  # True routes phone audio directly to the car, bypassing the dongle
     wifi_type: str = "5ghz"  # "2.4ghz" or "5ghz"
     mic_type: str = "os"  # "box" or "os"
     android_work_mode: Optional[bool] = None

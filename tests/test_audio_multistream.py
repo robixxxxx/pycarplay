@@ -5,12 +5,53 @@ import pytest
 
 from pycarplay.audio.audio_player import AudioPlayer
 from pycarplay.controller import VideoStreamController
+from pycarplay.config import CarPlayConfig
+from pycarplay.core.carplay_node import CarplayNode
+from pycarplay.core.dongle_driver import DongleConfig
 from pycarplay.protocol.messages import AudioCommand
+from pycarplay.protocol.sendable import CommandMapping
 
 
 def _stereo_constant_pcm(frames: int, value: int):
     chunk = np.full((frames, 2), value, dtype=np.int16)
     return tuple(chunk.reshape(-1).tolist())
+
+
+def test_phone_audio_output_skips_local_capture(monkeypatch):
+    controller = VideoStreamController.__new__(VideoStreamController)
+    controller._config = CarPlayConfig.from_dict({"audio": {"playback_enabled": False}})
+    logged_data = []
+    monkeypatch.setattr("pycarplay.controller.log_received_data", lambda *args: logged_data.append(args))
+
+    class FakeAudioPlayer:
+        def playAudioData(self, *args, **kwargs):
+            raise AssertionError("PCM should not be played locally")
+
+    controller._audio_player = FakeAudioPlayer()
+    message = types.SimpleNamespace(data=(1, 2, 3, 4))
+
+    controller._handle_audio(message)
+    assert logged_data == []
+
+
+def test_changing_audio_config_updates_active_dongle_mode():
+    config = CarPlayConfig.from_dict({"audio": {"playback_enabled": False}})
+    controller = VideoStreamController.__new__(VideoStreamController)
+    calls = []
+    node = CarplayNode.__new__(CarplayNode)
+    node.config = DongleConfig()
+    node.dongle_driver = type(
+        "Driver", (), {"device": object(), "send": lambda self, msg: calls.append(msg.value) or True}
+    )()
+    controller._carplay_node = node
+    controller._audio_player = type("Player", (), {"stop": lambda self: calls.append("stop")})()
+    config.audio.set_playback_change_callback(controller._on_audio_playback_enabled_changed)
+
+    config.audio.playback_enabled = True
+    config.audio.playback_enabled = False
+
+    assert calls == [CommandMapping.audioTransferOff, CommandMapping.audioTransferOn, "stop"]
+    assert node.config.audio_transfer_mode is True
 
 
 def test_streams_are_buffered_separately(monkeypatch):

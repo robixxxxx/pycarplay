@@ -6,9 +6,10 @@ Users can override default settings by creating their own config object.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from pathlib import Path
 import json
+from weakref import WeakMethod
 from .logging_utils import get_module_logger
 
 
@@ -26,11 +27,23 @@ class VideoConfig:
     
 @dataclass
 class AudioConfig:
-    """Audio playback configuration"""
+    """Audio output configuration"""
+    playback_enabled: bool = True
     sample_rate: int = 44100
     channels: int = 2
     chunk_size: int = 4096
-    
+
+    def __setattr__(self, name, value):
+        previous = self.__dict__.get(name, value)
+        object.__setattr__(self, name, value)
+        if name == "playback_enabled" and previous != value:
+            callback_ref = self.__dict__.get("_playback_change_callback")
+            callback = callback_ref() if callback_ref is not None else None
+            if callback is not None:
+                callback(bool(value))
+
+    def set_playback_change_callback(self, callback: Optional[Callable[[bool], None]]):
+        self._playback_change_callback = WeakMethod(callback) if callback is not None else None
 
 @dataclass
 class DongleConfig:
@@ -147,6 +160,7 @@ class CarPlayConfig:
                 'fps': self.video.fps,
             },
             'audio': {
+                'playback_enabled': self.audio.playback_enabled,
                 'sample_rate': self.audio.sample_rate,
                 'channels': self.audio.channels,
                 'chunk_size': self.audio.chunk_size,

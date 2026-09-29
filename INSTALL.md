@@ -60,3 +60,8 @@ sudo udevadm control --reload-rules
 ## macOS Permissions
 
 On macOS, you may need to grant USB permissions in System Preferences > Security & Privacy.
+
+## Running the Application
+```bash
+QT_QPA_PLATFORM=linuxfb python examples/basic_usage.py
+```

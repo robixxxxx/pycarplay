@@ -54,4 +54,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-pycarplay = ["ui/default/*.qml", "ui/components/*.qml"]
+pycarplay = ["ui/default/*.qml", "ui/components/*.qml", "assets/icons/*.png"]

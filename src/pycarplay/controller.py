@@ -962,6 +962,10 @@ class VideoStreamController(QObject):
             icon_data_120 = read_icon(icon_120, read_icon(icon_path))
             icon_data_180 = read_icon(icon_180, icon_data_120)
             icon_data_256 = read_icon(icon_256, icon_data_120)
+
+            if icon_data_120 is None or icon_data_180 is None or icon_data_256 is None:
+                print(f" Error setting icon: no icon file found at {icon_path!r} or its pre-sized variants")
+                return
             
             # Send all icon sizes to dongle
             print(" Uploading icons to dongle...")

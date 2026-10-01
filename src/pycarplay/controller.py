@@ -221,6 +221,13 @@ class VideoStreamController(QObject):
     @Slot()
     def connectDongle(self):
         """Connect to USB dongle"""
+        if self._carplay_node is not None:
+            # A connection is already starting or active (e.g. auto-connect raced
+            # with a manual button press, or an internal reconnect overlapped).
+            # Starting a second thread here claims the same USB device twice and
+            # causes "Resource busy" errors and corrupted video frames.
+            LOGGER.info("connectDongle ignored - a connection attempt is already in progress")
+            return
         try:
             self.dongleStatus = "Connecting..."
             
@@ -255,6 +262,9 @@ class VideoStreamController(QObject):
             LOGGER.exception("Failed to connect dongle: %s", e)
             import traceback
             traceback.print_exc()
+            # Reset so the next connectDongle() call isn't blocked forever by a
+            # node that never actually started.
+            self._carplay_node = None
     
     @Slot()
     def disconnectDongle(self):

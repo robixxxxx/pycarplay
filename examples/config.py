@@ -31,11 +31,12 @@ config.video.fps    = 60     # target frames per second | typical: 30, 60
 
 # -- AUDIO -------------------------------------------------------------------
 # Route audio through this device, or leave playback on the phone.
-config.audio.playback_enabled = True  # False = keep audio playback on the phone
+config.audio.playback_enabled = False  # False = keep audio playback on the phone
 # Audio stream parameters received from the phone when playback_enabled is True.
 config.audio.sample_rate = 44100  # sample rate in Hz | 44100, 48000
 config.audio.channels    = 2      # channels: 1 = mono, 2 = stereo
 config.audio.chunk_size  = 2048   # audio buffer size in bytes | 1024, 2048, 4096, 8192
+config.audio.volume      = 1.0    # audio volume multiplier | 0.0 = mute, 1.0 = full volume
 
 # -- DONGLE ------------------------------------------------------------------
 # USB dongle hardware settings.
